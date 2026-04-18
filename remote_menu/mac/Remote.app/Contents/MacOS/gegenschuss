@@ -1,0 +1,3 @@
+#!/bin/bash
+SCRIPT_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
+open -a Terminal "$SCRIPT_DIR/../remote_menu.sh"

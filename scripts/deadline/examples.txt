@@ -1,0 +1,81 @@
+Deadline Command Examples
+=========================================
+
+Use these as reference command lines in Deadline Monitor.
+Adjust wait/grace values to your environment.
+
+1) Pre-job wake (recommended baseline)
+--------------------------------------
+/Volumes/scripts/scripts/farm_wake.sh --silent --prejob-wait=45
+
+Behavior:
+- non-interactive
+- skips Windows nodes by policy
+- succeeds when at least one targeted node responds
+
+
+2) Pre-job wake (strict readiness)
+----------------------------------
+/Volumes/scripts/scripts/farm_wake.sh --silent-strict --prejob-wait=60
+
+Behavior:
+- non-interactive
+- skips Windows nodes by policy
+- succeeds only when all targeted nodes respond
+
+
+3) Batch finalizer (recommended shutdown pattern)
+-------------------------------------------------
+/Volumes/scripts/scripts/farm_deadline_batch_finalize.sh --grace-seconds=30
+
+Behavior:
+- run as ONE dependent "finalizer" job after the batch
+- waits grace period, then calls post-job shutdown mode
+
+
+4) Finalizer (log only / test mode)
+-----------------------------------
+/Volumes/scripts/scripts/farm_deadline_batch_finalize.sh --no-shutdown
+
+Behavior:
+- verifies dependency flow without shutting down nodes
+
+
+5) Post-job shutdown fallback (direct)
+--------------------------------------
+/Volumes/scripts/scripts/farm_shutdown.sh --deadline-postjob
+
+Behavior:
+- non-interactive Linux-node shutdown path
+- use as fallback if finalizer job is not available
+
+
+6) Submit command job from farm suite
+-------------------------------------
+/Volumes/scripts/scripts/farm_deadline_submit_command.sh \
+  --name "Farm PostJob Shutdown" \
+  --script /Volumes/scripts/scripts/farm_shutdown.sh -- --deadline-postjob
+
+Behavior:
+- submits a Command Script job via deadlinecommand
+- useful when you want repeatable CLI-based submission
+
+
+7) Submit suspended shutdown job (one-liner)
+--------------------------------------------
+/Volumes/scripts/scripts/farm_deadline_submit_shutdown.sh
+
+Behavior:
+- clears screen + shows farm header animation
+- submits post-job shutdown command with allow-list NAME-gpu1
+- job is submitted in Suspended state
+
+
+Deadline dependency tips
+------------------------
+- Submit render jobs first.
+- Submit one finalizer command job.
+- Set finalizer dependency on all jobs in the batch.
+- Optional: enable "Resume On Failed Dependencies" if you still want
+  finalizer/shutdown to run when some render jobs fail.
+

@@ -1,0 +1,50 @@
+[State]
+Type=Enum
+Items=Global Enabled;Opt-In;Disabled
+Label=State
+Default=Disabled
+Description=How this event plugin responds to events.
+
+[IntervalMinutes]
+Type=integer
+Label=Wake Interval Minutes
+Default=10
+Minimum=1
+Description=Minimum time between automatic wake submissions while active jobs exist.
+
+[WakeSubmitScript]
+Type=string
+Label=Wake Submit Script Path
+Default=/mnt/studio/Toolbox/farm/scripts/deadline/submit.sh
+Description=Path to the submit.sh helper script.
+
+[WakeScript]
+Type=string
+Label=Wake Script Path
+Default=/mnt/studio/Toolbox/farm/scripts/core/wake.sh
+Description=Path to wake.sh to run in silent pre-job mode.
+
+[WakeWorkerWhitelist]
+Type=string
+Label=Wake Worker Whitelist
+Default=
+Description=Comma-separated worker allow-list for wake command jobs.
+
+[WakePrejobWaitSeconds]
+Type=integer
+Label=Wake Prejob Wait Seconds
+Default=45
+Minimum=5
+Description=Value passed to --prejob-wait for wake.sh.
+
+[WakeJobNamePrefix]
+Type=string
+Label=Wake Job Name Prefix
+Default=Farm Auto Wake Tick
+Description=Prefix used to detect existing auto-wake command jobs.
+
+[DryRun]
+Type=boolean
+Label=Dry Run
+Default=false
+Description=If true, logs intended submits without creating Deadline jobs.
