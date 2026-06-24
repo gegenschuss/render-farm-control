@@ -6,6 +6,42 @@
 #             /___/
 #
 
+# --- VERSION HELPERS ---------------------------------------------------------
+
+# Extract the first dotted-numeric version token from a string.
+#   /opt/hfs21.0.631                              -> 21.0.631
+#   houdini-21.0.729-linux_x86_64_gcc11.2.tar.gz  -> 21.0.729
+#   Deadline-10.4.0.10-linux-installers.tar       -> 10.4.0.10
+farm_extract_version() {
+    grep -oE '[0-9]+(\.[0-9]+)+' <<< "$1" | head -n 1
+}
+
+# Version the given package filename will install.
+farm_install_target_version() {
+    farm_extract_version "$1"
+}
+
+# Return 0 if version $1 >= version $2 (numeric, dot-separated).
+farm_version_ge() {
+    [ "$1" = "$2" ] && return 0
+    [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | tail -n 1)" = "$1" ]
+}
+
+# Classify an installed version against the target.
+# Echoes one of: notinstalled | update | uptodate | unknown
+farm_install_classify() {
+    local installed="$1" target="$2"
+    if [ -z "$installed" ]; then
+        echo "notinstalled"
+    elif [ -z "$target" ]; then
+        echo "unknown"
+    elif farm_version_ge "$installed" "$target"; then
+        echo "uptodate"
+    else
+        echo "update"
+    fi
+}
+
 farm_install_check_state() {
     local mode="$1"
     local label="$2"

@@ -138,58 +138,170 @@ echo ""
 
 farm_print_section "Pre-flight checks"
 
-if [ "$MODE" = "deadline" ]; then
-    farm_install_check_state "$MODE" "$FARM_LOCAL_NAME" \
-        "[ -f \"$FARM_DEADLINECOMMAND\" ] && \"$FARM_DEADLINECOMMAND\" --version 2>/dev/null || echo 'not installed'"
-else
-    farm_install_check_state "$MODE" "$FARM_LOCAL_NAME" \
-        "ls -1d /opt/hfs* 2>/dev/null | sort -V | tail -1"
-fi
+TARGET_VERSION=$(farm_install_target_version "$FILENAME_ONLY")
 
+# Query the installed version of $MODE on a node ("" = local workstation).
+# Echoes the raw version string (empty if not installed).
+query_installed_version() {
+    local node="$1"
+    if [ -z "$node" ]; then
+        if [ "$MODE" = "deadline" ]; then
+            [ -f "$FARM_DEADLINECOMMAND" ] && "$FARM_DEADLINECOMMAND" --version 2>/dev/null
+        else
+            ls -1d /opt/hfs* 2>/dev/null | sort -V | tail -1
+        fi
+    else
+        # -n: never read stdin, so these probes can't swallow the keystrokes
+        # the user later types at the selection prompt.
+        if [ "$MODE" = "deadline" ]; then
+            ssh -n -F ~/.ssh/config -o LogLevel=ERROR "$node" \
+                '[ -f "'"$FARM_DEADLINECOMMAND"'" ] && "'"$FARM_DEADLINECOMMAND"'" --version 2>/dev/null'
+        else
+            ssh -n -F ~/.ssh/config -o LogLevel=ERROR "$node" \
+                'ls -1d /opt/hfs* 2>/dev/null | sort -V | tail -1'
+        fi
+    fi
+}
+
+# Print one pre-flight line for a node given its state + installed version.
+print_state_line() {
+    local label="$1" ver="$2" state="$3"
+    case "$state" in
+        uptodate)
+            printf "  %-12s  ${FARM_C_OK}%-13s${FARM_C_RESET} ${FARM_C_OK}[up to date]${FARM_C_RESET}\n" \
+                "$label:" "$ver" ;;
+        update)
+            printf "  %-12s  ${FARM_C_WARN}%-13s${FARM_C_RESET} ${FARM_C_WARN}[needs update -> %s]${FARM_C_RESET}\n" \
+                "$label:" "$ver" "$TARGET_VERSION" ;;
+        notinstalled)
+            printf "  %-12s  ${FARM_C_ERR}%-13s${FARM_C_RESET} ${FARM_C_WARN}[install -> %s]${FARM_C_RESET}\n" \
+                "$label:" "not installed" "$TARGET_VERSION" ;;
+        offline)
+            printf "  %-12s  ${FARM_C_WARN}OFFLINE${FARM_C_RESET}\n" "$label:" ;;
+        windows)
+            printf "  %-12s  ${FARM_C_WARN}WINDOWS (skipping)${FARM_C_RESET}\n" "$label:" ;;
+        *)
+            printf "  %-12s  %-13s ${FARM_C_WARN}[unknown version]${FARM_C_RESET}\n" "$label:" "${ver:-?}" ;;
+    esac
+}
+
+# Candidate target arrays (parallel): name, is-local flag, version, state.
+CAND_NAME=() CAND_LOCAL=() CAND_VER=() CAND_STATE=()
+
+# --- Local workstation ---
+LOCAL_RAW=$(query_installed_version "")
+LOCAL_VER=$(farm_extract_version "$LOCAL_RAW")
+LOCAL_STATE=$(farm_install_classify "$LOCAL_VER" "$TARGET_VERSION")
+print_state_line "$FARM_LOCAL_NAME" "$LOCAL_VER" "$LOCAL_STATE"
+CAND_NAME+=("$FARM_LOCAL_NAME"); CAND_LOCAL+=("1")
+CAND_VER+=("$LOCAL_VER"); CAND_STATE+=("$LOCAL_STATE")
+
+# --- Farm nodes ---
 declare -A NODE_OS
 for node in "${NODES[@]}"; do
-    farm_get_node_os_status "$node" "ping"
+    # Probe over ssh (the same channel the install runs on) rather than a
+    # bare-name ping. Pinging the hostname can resolve through a different path
+    # than the ssh HostName (Tailscale/DNS vs LAN, or a stale /etc/hosts entry),
+    # so a node could ping-up while ssh is down (or vice versa) and get wrongly
+    # included/skipped for the install.
+    farm_get_node_os_status "$node" "ssh"
     NODE_OS[$node]=$?
     case ${NODE_OS[$node]} in
-        0)
-            printf "  %-12s  ${FARM_C_WARN}OFFLINE${FARM_C_RESET}\n" "$node:"
-            ;;
-        1)
-            printf "  %-12s  ${FARM_C_WARN}WINDOWS (skipping)${FARM_C_RESET}\n" "$node:"
-            ;;
+        0) print_state_line "$node" "" "offline" ;;
+        1) print_state_line "$node" "" "windows" ;;
         2)
-            if [ "$MODE" = "deadline" ]; then
-                farm_install_check_state "$MODE" "$node" \
-                    "ssh -F ~/.ssh/config -o LogLevel=ERROR $node '[ -f \"$FARM_DEADLINECOMMAND\" ] && \"$FARM_DEADLINECOMMAND\" --version 2>/dev/null || echo not installed'"
-            else
-                farm_install_check_state "$MODE" "$node" \
-                    "ssh -F ~/.ssh/config -o LogLevel=ERROR $node 'ls -1d /opt/hfs* 2>/dev/null | sort -V | tail -1'"
-            fi
+            raw=$(query_installed_version "$node")
+            ver=$(farm_extract_version "$raw")
+            state=$(farm_install_classify "$ver" "$TARGET_VERSION")
+            print_state_line "$node" "$ver" "$state"
+            CAND_NAME+=("$node"); CAND_LOCAL+=("0")
+            CAND_VER+=("$ver"); CAND_STATE+=("$state")
             ;;
     esac
 done
 
 echo ""
 printf "  %-12s  ${FARM_C_NODE}%s${FARM_C_RESET}\n" "Installing:" "$FILENAME_ONLY"
+printf "  %-12s  ${FARM_C_NODE}%s${FARM_C_RESET}\n" "Target ver:" "${TARGET_VERSION:-unknown}"
 echo ""
 
-echo "Install on local workstation as well?"
-farm_prompt_rule
-read -p "(y/n, q=cancel): " INSTALL_LOCAL
+# --- Selection ---------------------------------------------------------------
+farm_print_section "Select targets to install"
+
+# Default selection = everything that needs updating (or isn't installed yet).
+DEFAULT_SEL=()
+for i in "${!CAND_NAME[@]}"; do
+    case "${CAND_STATE[$i]}" in
+        update|notinstalled|unknown) DEFAULT_SEL+=("$i") ;;
+    esac
+done
+
+for i in "${!CAND_NAME[@]}"; do
+    tag=""
+    case "${CAND_STATE[$i]}" in
+        uptodate)     tag="${FARM_C_OK}up to date${FARM_C_RESET}" ;;
+        update)       tag="${FARM_C_WARN}needs update${FARM_C_RESET}" ;;
+        notinstalled) tag="${FARM_C_WARN}not installed${FARM_C_RESET}" ;;
+        *)            tag="unknown" ;;
+    esac
+    local_mark=""; [ "${CAND_LOCAL[$i]}" = "1" ] && local_mark=" (local)"
+    printf "  [%d] %-18s %-13s %b\n" \
+        "$((i+1))" "${CAND_NAME[$i]}${local_mark}" "${CAND_VER[$i]:-—}" "$tag"
+done
 echo ""
-if [[ "$INSTALL_LOCAL" == "q" || "$INSTALL_LOCAL" == "Q" ]]; then
-    echo "Aborted."
+if [ ${#DEFAULT_SEL[@]} -gt 0 ]; then
+    names=""
+    for i in "${DEFAULT_SEL[@]}"; do names+="${names:+, }${CAND_NAME[$i]}"; done
+    echo "  Default (update-only): $names"
+else
+    echo "  All targets are already up to date."
+fi
+farm_prompt_rule
+echo "  [Enter]=update-only   a=all   numbers e.g. 1,3,5=manual   q=cancel"
+read -p "> " SEL
+echo ""
+
+case "$SEL" in
+    q|Q) echo "Aborted."; exit 0 ;;
+    a|A) SELECTED=("${!CAND_NAME[@]}") ;;
+    "")  SELECTED=("${DEFAULT_SEL[@]}") ;;
+    *)
+        SELECTED=()
+        for tok in ${SEL//,/ }; do
+            if [[ "$tok" =~ ^[0-9]+$ ]] && [ "$tok" -ge 1 ] \
+               && [ "$tok" -le "${#CAND_NAME[@]}" ]; then
+                SELECTED+=("$((tok-1))")
+            else
+                farm_print_warn "Ignoring invalid selection: $tok"
+            fi
+        done
+        ;;
+esac
+
+if [ ${#SELECTED[@]} -eq 0 ]; then
+    echo "Nothing selected — nothing to install."
     exit 0
 fi
 
-echo "Proceed with installation on all nodes?"
+# Map selection -> remote node list + local flag.
+ELIGIBLE_NODES=()
+INSTALL_LOCAL="n"
+for i in "${SELECTED[@]}"; do
+    if [ "${CAND_LOCAL[$i]}" = "1" ]; then
+        INSTALL_LOCAL="y"
+    else
+        ELIGIBLE_NODES+=("${CAND_NAME[$i]}")
+    fi
+done
+
+echo "Will install ${FILENAME_ONLY} on:"
+for i in "${SELECTED[@]}"; do
+    lm=""; [ "${CAND_LOCAL[$i]}" = "1" ] && lm=" (local)"
+    printf "  - %s%s\n" "${CAND_NAME[$i]}" "$lm"
+done
 farm_prompt_rule
-read -p "(y/n, q=cancel): " PROCEED
+read -p "Proceed? (y/n): " PROCEED
 echo ""
-if [[ "$PROCEED" == "q" || "$PROCEED" == "Q" ]]; then
-    echo "Aborted."
-    exit 0
-fi
 if [[ ! "$PROCEED" =~ ^[Yy]$ ]]; then
     echo "  Aborted."
     echo ""
@@ -205,31 +317,28 @@ if [ "$MODE" = "deadline" ]; then
     B64_REMOTE=$(echo "$REMOTE_SCRIPT" | base64 -w 0)
     REMOTE_FINAL_CMD="bash -c 'echo $B64_REMOTE | base64 -d | bash'"
 else
-    REMOTE_FINAL_CMD=$(farm_install_build_houdini_cmd \
+    HOUDINI_SCRIPT=$(farm_install_build_houdini_cmd \
         "$FILENAME_ONLY" "$SEARCH_DIR" "$INSTALL_DIR")
-    LOCAL_SCRIPT="$REMOTE_FINAL_CMD"
+
+    # The generated script contains single/double quotes, newlines and raw ANSI
+    # escapes. Embedding it verbatim inside ssh "..."/bash -c '...' corrupts the
+    # quoting and the tmux pane dies instantly ("server exited unexpectedly").
+    # base64-encode it the same way the deadline path does so the wrapper only
+    # ever sees a safe [A-Za-z0-9+/=] payload.
+    B64_HOUDINI=$(echo "$HOUDINI_SCRIPT" | base64 -w 0)
+    REMOTE_FINAL_CMD="bash -c 'echo $B64_HOUDINI | base64 -d | bash'"
+    LOCAL_SCRIPT="echo $B64_HOUDINI | base64 -d | bash"
 fi
 
 farm_print_section "Launching tmux session"
 echo "Session:"
 echo "    $SESSION"
 echo ""
-echo "Nodes:"
-echo "  ${NODES[*]}"
+echo "Targets:"
+[ ${#ELIGIBLE_NODES[@]} -gt 0 ] && echo "  ${ELIGIBLE_NODES[*]}"
+[[ "$INSTALL_LOCAL" =~ ^[Yy]$ ]] && echo "  $FARM_LOCAL_NAME (local)"
 echo ""
 farm_tmux_reset_session "$SESSION"
-
-ELIGIBLE_NODES=()
-for node in "${NODES[@]}"; do
-    if [ "${NODE_OS[$node]}" = "2" ]; then
-        ELIGIBLE_NODES+=("$node")
-    fi
-done
-
-if [ ${#ELIGIBLE_NODES[@]} -eq 0 ]; then
-    farm_print_warn "No eligible Linux nodes for $MODE install."
-    exit 0
-fi
 
 for NODE in "${ELIGIBLE_NODES[@]}"; do
     farm_tmux_add_pane \

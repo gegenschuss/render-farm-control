@@ -579,11 +579,42 @@ Tailscale-based remote control from a Mac laptop. Located in `remote_menu/`.
 |--------|-------------|
 | `doctor.sh` | Validate dependencies, Deadline connectivity, SSH access |
 | `selftest.sh` | Syntax check + safe dry-runs + doctor (`--quick` for fast) |
-| `install_app.sh` | Deploy software to all nodes via tmux |
+| `install_app.sh` | Deploy Houdini/Deadline to selected nodes via tmux (version-aware) |
 | `debug.sh` | Check Windows Update activity on dual-boot nodes |
 | `launch_houdini.sh` | Launch latest Houdini from `/opt` |
 | `launch_nuke.sh` | Launch latest Nuke |
 | `setup_new_node.sh` | Provision a fresh machine as render node |
+
+#### Deploying software (`install_app.sh`)
+
+```bash
+./scripts/tools/install_app.sh houdini    # or: deadline
+```
+
+It picks the newest matching package from the install share, then runs a
+pre-flight that checks the installed version on every reachable node (and the
+local workstation) against the version that package will install:
+
+```
+  lester:       21.0.729      [up to date]
+  stringer:     21.0.729      [up to date]
+  barksdale:    21.0.631      [needs update -> 21.0.729]
+  ...
+  Target ver:   21.0.729
+```
+
+You then choose what to install -- nodes already on the target are never
+forced to reinstall:
+
+- **`Enter`** -- update-only: just the nodes that are behind (or missing it)
+- **`a`** -- all eligible nodes
+- **`1,3,5`** -- pick specific nodes by number (the local workstation is one
+  of the numbered targets)
+- **`q`** -- cancel
+
+The chosen nodes install in parallel in a synchronized tmux session
+(`Ctrl+b, y` toggles broadcast to all panes). Offline and Windows-booted
+nodes are detected over SSH and skipped automatically.
 
 ---
 

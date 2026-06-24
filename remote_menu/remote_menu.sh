@@ -14,7 +14,10 @@ Usage: ./remote_menu.sh
 Interactive launcher for:
   - core/ping.sh
   - core/wake.sh
+  - core/mount.sh
+  - core/delcache.sh
   - core/unmount.sh
+  - core/shutdown.sh
 
 Tips:
   - Use arrow keys to navigate
@@ -83,22 +86,28 @@ build_menu() {
     MENU_ENTRIES=()
     SELECTABLE=()
 
-    MENU_ENTRIES+=( "HEADER|=== REMOTE STATUS ==========================================" )
+    MENU_ENTRIES+=( "HEADER|=== STATUS ================================================" )
+    make_line "s" "Ping"     "Ping remote nodes"
+    MENU_ENTRIES+=( "ITEM|s|${PLAIN_OUT}|${COLOR_OUT}|status" )
     make_line "f" "Login"    "SSH to workstation farm menu"
     MENU_ENTRIES+=( "ITEM|f|${PLAIN_OUT}|${COLOR_OUT}|farm" )
-    make_line "s" "Ping"  "Ping remote nodes"
-    MENU_ENTRIES+=( "ITEM|s|${PLAIN_OUT}|${COLOR_OUT}|status" )
-    make_line ""
-    MENU_ENTRIES+=( "HEADER|=== REMOTE START ===========================================" )
+    MENU_ENTRIES+=( "HEADER|=== START =================================================" )
     make_line "w" "Start"    "Wake + mount + connect"
     MENU_ENTRIES+=( "ITEM|w|${PLAIN_OUT}|${COLOR_OUT}|wake" )
-    make_line ""
-    MENU_ENTRIES+=( "HEADER|=== REMOTE SHUTDOWN ========================================" )
-    make_line "u" "Unmount" "Close monitor + unmount shares"
+    MENU_ENTRIES+=( "HEADER|=== SHARES ================================================" )
+    make_line "m" "Mount"     "Mount shares (Tailscale)"
+    MENU_ENTRIES+=( "ITEM|m|${PLAIN_OUT}|${COLOR_OUT}|mount" )
+    make_line "l" "Mount LAN" "Mount shares via local network"
+    MENU_ENTRIES+=( "ITEM|l|${PLAIN_OUT}|${COLOR_OUT}|mount_local" )
+    make_line "u" "Unmount"   "Unmount all remote shares"
     MENU_ENTRIES+=( "ITEM|u|${PLAIN_OUT}|${COLOR_OUT}|unmount" )
+    MENU_ENTRIES+=( "HEADER|=== MAINTENANCE ===========================================" )
+    make_line "c" "Cache"    "Purge local caches"
+    MENU_ENTRIES+=( "ITEM|c|${PLAIN_OUT}|${COLOR_OUT}|delcache" )
+    MENU_ENTRIES+=( "HEADER|=== SHUTDOWN ==============================================" )
     make_line "x" "Shutdown" "Shutdown remote linux workstation & nodes"
     MENU_ENTRIES+=( "ITEM|x|${PLAIN_OUT}|${COLOR_OUT}|shutdown_remote" )
-    MENU_ENTRIES+=( "HEADER|============================================================" )
+    MENU_ENTRIES+=( "HEADER|===========================================================" )
     make_line "q" "Exit" ""
     MENU_ENTRIES+=( "ITEM|q|${PLAIN_OUT}|  ${RED}q${NC}) ${BOLD}Exit${NC}|quit" )
 
@@ -212,6 +221,16 @@ run_action() {
             bash "$SCRIPT_DIR/core/wake.sh"
             return 0
             ;;
+        mount)
+            printf "\n${CYAN}Mounting remote shares...${NC}\n\n"
+            bash "$SCRIPT_DIR/core/mount.sh"
+            return 0
+            ;;
+        mount_local)
+            printf "\n${CYAN}Mounting shares via local network...${NC}\n\n"
+            bash "$SCRIPT_DIR/core/mount.sh" --local
+            return 0
+            ;;
         shutdown_remote)
             if ! confirm_danger "SHUT DOWN ALL REMOTE LINUX NODES AND WORKSTATION"; then
                 printf "${YELLOW}Shutdown cancelled.${NC}\n"
@@ -227,6 +246,11 @@ run_action() {
             fi
             printf "\n${CYAN}Running remote unmount...${NC}\n\n"
             bash "$SCRIPT_DIR/core/unmount.sh"
+            return 0
+            ;;
+        delcache)
+            printf "\n${CYAN}Running local cache cleanup...${NC}\n\n"
+            bash "$SCRIPT_DIR/core/delcache.sh"
             return 0
             ;;
         farm)

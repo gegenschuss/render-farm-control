@@ -462,14 +462,14 @@ farm_get_node_os_status() {
             return 0
             ;;
         ssh)
-            if ssh -F ~/.ssh/config -o ConnectTimeout=3 -o LogLevel=ERROR \
+            if ssh -n -F ~/.ssh/config -o ConnectTimeout=3 -o LogLevel=ERROR \
                 "$node" "echo ok" &>/dev/null; then
                 return 2
             fi
             return 0
             ;;
         ssh_or_ping)
-            if ssh -F ~/.ssh/config -o ConnectTimeout=3 -o LogLevel=ERROR \
+            if ssh -n -F ~/.ssh/config -o ConnectTimeout=3 -o LogLevel=ERROR \
                 "$node" "echo ok" &>/dev/null; then
                 return 2
             fi
@@ -494,10 +494,10 @@ detect_node_os() {
     local NAME=$1
 
     # Check Windows first
-    if ssh -F ~/.ssh/config -o BatchMode=yes -o ConnectTimeout=3 -o LogLevel=ERROR \
+    if ssh -n -F ~/.ssh/config -o BatchMode=yes -o ConnectTimeout=3 -o LogLevel=ERROR \
            "${NAME}-win" "echo ok" &>/dev/null; then
 
-        OS_CHECK=$(ssh -F ~/.ssh/config -o BatchMode=yes -o ConnectTimeout=3 -o LogLevel=ERROR \
+        OS_CHECK=$(ssh -n -F ~/.ssh/config -o BatchMode=yes -o ConnectTimeout=3 -o LogLevel=ERROR \
             "${NAME}-win" \
             "powershell -Command \"\$env:OS\"" 2>/dev/null)
 
@@ -507,7 +507,7 @@ detect_node_os() {
     fi
 
     # Check Linux
-    if ssh -F ~/.ssh/config -o BatchMode=yes -o ConnectTimeout=3 -o LogLevel=ERROR \
+    if ssh -n -F ~/.ssh/config -o BatchMode=yes -o ConnectTimeout=3 -o LogLevel=ERROR \
            "$NAME" "echo ok" &>/dev/null; then
         return 2
     fi

@@ -15,17 +15,20 @@
 # --- Deadline Server ---
 DEADLINE_USER="deadline"
 DEADLINE_HOST="100.x.x.x"
+DEADLINE_HOST_LOCAL="192.168.x.x"
 DEADLINE_SHARE="DeadlineRepository10"
 
 # --- NAS / File Server ---
 NAS_USER="youruser"
 NAS_HOST="100.x.x.x"
+NAS_HOST_LOCAL="192.168.x.x"
 NAS_STUDIO_SHARE="studio"
 NAS_BUERO_SHARE="buero"
 
 # --- Workstation ---
 WORKSTATION_USER="youruser"
 WORKSTATION_HOST="100.x.x.x"
+WORKSTATION_HOST_LOCAL="192.168.x.x"
 WORKSTATION_HOUDINI_SHARE="houdini"
 WORKSTATION_NUKE_SHARE="nuke"
 WORKSTATION_SSH_HOST="workstation"

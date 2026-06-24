@@ -297,9 +297,15 @@ check_node_status() {
                     ;;
             esac
         else
-            # Linux-only node
-            _wstat "pinging..."
-            if ! ping -c 1 -W 1 "$node" &>/dev/null; then
+            # Linux-only node.
+            # Probe liveness over the SAME ssh-config channel used to fetch
+            # details below. A bare-name `ping` can resolve through a different
+            # path than the ssh HostName (e.g. Tailscale/DNS vs the LAN IP, or a
+            # stale /etc/hosts entry), so a node could ping on one transport while
+            # the real box is unreachable on the other — producing a false "ready".
+            _wstat "connecting..."
+            if ! ssh -F ~/.ssh/config -o BatchMode=yes -o ConnectTimeout=3 \
+                    -o LogLevel=ERROR "$node" 'true' &>/dev/null; then
                 print_node_header "$node" "OFFLINE"
                 echo ""
                 summary_line="$node|offline||n/a"
