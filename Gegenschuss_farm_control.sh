@@ -30,40 +30,30 @@ trap 'handle_sigusr1' SIGUSR1
 
 NC='\033[0m'
 BOLD='\033[1m'
-REVERSE='\033[7m'
 GREEN="$FARM_C_OK"
 RED="$FARM_C_ERR"
 YELLOW="$FARM_C_WARN"
 
+DIM="$FARM_C_DIM"
+
 function apply_random_menu_theme() {
-    # One soft accent per redraw; falls back to classic ANSI colors on
+    # One soft accent per menu build drives the shortcut keys, section
+    # headers, selection bar and footer; classic ANSI fallback on
     # terminals without 256-color support.
     if [ "${FARM_UI_256:-0}" -eq 1 ]; then
-        local palettes=(
-            "CYAN=\033[38;5;81m"
-            "CYAN=\033[38;5;114m"
-            "CYAN=\033[38;5;176m"
-            "CYAN=\033[38;5;215m"
-            "CYAN=\033[38;5;117m"
-            "CYAN=\033[38;5;222m"
-        )
+        local accents=(81 114 176 215 117 222)
+        local a="${accents[$RANDOM % ${#accents[@]}]}"
+        CYAN="\033[38;5;${a}m"
+        KEY_C="\033[1;38;5;${a}m"
+        # Selection bar: accent background, near-black bold text.
+        SEL_ON="\033[48;5;${a}m\033[38;5;235m\033[1m"
     else
-        local palettes=(
-            "CYAN=\033[0;36m"
-            "CYAN=\033[1;34m"
-            "CYAN=\033[1;35m"
-            "CYAN=\033[1;33m"
-        )
+        local accents=('0;36' '1;34' '1;35' '1;33')
+        local a="${accents[$RANDOM % ${#accents[@]}]}"
+        CYAN="\033[${a}m"
+        KEY_C="\033[1m${CYAN}"
+        SEL_ON="\033[7m\033[1m"
     fi
-    local idx=$(( RANDOM % ${#palettes[@]} ))
-    local entry="${palettes[$idx]}"
-    local part
-    IFS='|' read -r -a parts <<< "$entry"
-    for part in "${parts[@]}"; do
-        case "$part" in
-            CYAN=*)   CYAN="${part#CYAN=}" ;;
-        esac
-    done
 }
 
 apply_random_menu_theme
@@ -123,36 +113,63 @@ function handle_sigusr1() {
 }
 
 # ---------------------------------------------------------------------------
-# HELPER: build a section header rule ("── LABEL ─────…" to menu width)
+# HELPER: print a section header ("  ── LABEL ────…" — dim rule, accent
+# label). Headers are stored as bare labels and colored at render time so
+# they always match the current accent.
 # ---------------------------------------------------------------------------
-function menu_header() {
-    local label="$1" width=60 line="" fill i
+function render_header() {
+    local label="$1" width=$LINE_WIDTH fill line=""
     local g="${FARM_G_RULE:-─}"
     if [[ -n "$label" ]]; then
-        line="${g}${g} ${label} "
-        fill=$(( width - ${#line} ))
+        fill=$(( width - ${#label} - 6 ))
+        (( fill < 0 )) && fill=0
+        printf -v line "%${fill}s" ""
+        printf '%b\n' "  ${DIM}${g}${g}${NC} ${BOLD}${CYAN}${label}${NC} ${DIM}${line// /$g}${NC}"
     else
-        fill=$width
+        printf -v line "%$(( width - 2 ))s" ""
+        printf '%b\n' "  ${DIM}${line// /$g}${NC}"
     fi
-    for (( i=0; i<fill; i++ )); do line+="$g"; done
-    printf '%s' "$line"
+}
+
+# ---------------------------------------------------------------------------
+# HELPER: selected-row rendering (accent bar + pointer). The bar replaces
+# the row's leading pad, so plain strings must start with >= 2 spaces.
+# ---------------------------------------------------------------------------
+function print_sel_full() {
+    printf '%b%s%b' "$SEL_ON" " ${FARM_G_PTR}${1:2}" "$NC"
+}
+
+function print_sel_left() {   # $1=lplain $2=spaces $3=rcolored
+    printf '%b%s%b%s%b' "$SEL_ON" " ${FARM_G_PTR}${1:2}" "$NC" "$2" "$3"
+}
+
+function print_sel_right() {  # $1=lcolored $2=spaces $3=rplain
+    printf '%b%s%b%s%b' "$1" "$2" "$SEL_ON" "$3" "$NC"
 }
 
 # ---------------------------------------------------------------------------
 # HELPER: build a justified line
 # ---------------------------------------------------------------------------
+# Shortcut key color: accent by default, warn for destructive actions,
+# red for exit.
+function key_color() {
+    case "$1" in
+        r|R|s|S|c) printf '%s' "$YELLOW" ;;
+        q)         printf '%s' "$RED" ;;
+        *)         printf '%s' "$KEY_C" ;;
+    esac
+}
+
 function make_line() {
-    local shortcut="$1" label="$2" hint="$3"
-    local prefix="  ${shortcut}) "
+    local shortcut="$1" label="$2" hint="$3" hintc="${4:-$DIM}"
+    local prefix="   ${shortcut}  "
     local plain="${prefix}${label}"
     local pad=$(( LINE_WIDTH - ${#plain} - ${#hint} ))
     (( pad < 1 )) && pad=1
     local spaces
     printf -v spaces "%${pad}s" ""
     PLAIN_OUT="${prefix}${label}${spaces}${hint}"
-    COLOR_OUT="  ${GREEN}${shortcut}${NC}) ${NC}${label}${NC}${spaces}${hint}"
-    [[ "$shortcut" =~ ^[-08q]$ ]] && \
-        COLOR_OUT="  ${RED}${shortcut}${NC}) ${BOLD}${label}${NC}${spaces}${hint}"
+    COLOR_OUT="   $(key_color "$shortcut")${shortcut}${NC}  ${label}${spaces}${hintc}${hint}${NC}"
 }
 
 # ---------------------------------------------------------------------------
@@ -166,16 +183,16 @@ declare -A PAIR_PARTNER   # entry_idx -> partner entry_idx
 function add_pair() {
     local s1="$1" label1="$2" action1="$3" s2="$4" label2="$5" action2="$6"
 
-    local lplain="  ${s1}) ${label1}"
-    local rplain="${s2}) ${label2}"
+    local lplain="   ${s1}  ${label1}"
+    local rplain="${s2}  ${label2}"
 
     local pad=$(( PAIR_SPLIT - ${#lplain} ))
     (( pad < 2 )) && pad=2
     local spaces; printf -v spaces "%${pad}s" ""
 
     local full_plain="${lplain}${spaces}${rplain}"
-    local lcolored="  ${GREEN}${s1}${NC}) ${label1}"
-    local rcolored="${GREEN}${s2}${NC}) ${label2}"
+    local lcolored="   $(key_color "$s1")${s1}${NC}  ${label1}"
+    local rcolored="$(key_color "$s2")${s2}${NC}  ${DIM}${label2}${NC}"
     local full_colored="${lcolored}${spaces}${rcolored}"
 
     local left_idx=${#MENU_ENTRIES[@]}
@@ -202,11 +219,11 @@ function _render_pair_row() {
     tput cup "$row" 0
 
     if [[ "$left_sel" == "1" ]]; then
-        printf "${REVERSE}${lplain}${NC}${spaces}${rcolored}"
+        print_sel_left "$lplain" "$spaces" "$rcolored"
     elif [[ "$right_sel" == "1" ]]; then
-        printf "${lcolored}${spaces}${REVERSE}${rplain}${NC}"
+        print_sel_right "$lcolored" "$spaces" "$rplain"
     else
-        printf "${full_colored}"
+        printf '%b' "$full_colored"
     fi
     tput rc
 }
@@ -303,6 +320,19 @@ function ping_status_str() {
     else
         printf "Nodes: ${YELLOW}${PING_ONLINE}/${total} online${NC}"
     fi
+}
+
+# One dot per node: green filled = online (Linux), dim hollow = not.
+function node_dots_str() {
+    local total=${#NODES[@]} i out=""
+    for (( i=0; i<total; i++ )); do
+        if (( i < PING_ONLINE )); then
+            out+="${GREEN}${FARM_G_DOT}${NC}"
+        else
+            out+="${DIM}${FARM_G_DOT_OFF}${NC}"
+        fi
+    done
+    printf '%b' "$out"
 }
 
 function nodes_ratio_str() {
@@ -436,15 +466,6 @@ function autowake_next_str() {
 }
 
 function render_status_line() {
-    local autowake next_s
-    # pulse_label="Pulse"
-    next_s=$(autowake_next_str)
-    if [ "$AUTOWAKE_ENABLED" -eq 1 ]; then
-        autowake="[ON]"
-    else
-        autowake="[OFF]"
-    fi
-
     local cache_age=""
     if [ -f "$PING_CACHE_FILE" ]; then
         local mtime now
@@ -458,19 +479,13 @@ function render_status_line() {
     tput sc
     tput cup "$POWER_STATUS_ROW" 0
     tput el
-    if [[ "$autowake" == "[ON]" ]]; then
-        printf "  AutoWake: ${GREEN}%s${NC} next: %s Nodes: %s%s" \
-            "$autowake" \
-            "$next_s" \
-            "$(nodes_ratio_str)" \
-            "${cache_age:+ (${cache_age}s)}"
+    if [ "$AUTOWAKE_ENABLED" -eq 1 ]; then
+        printf '%b' "   ${DIM}autowake${NC} ${GREEN}${FARM_G_DOT} on${NC} ${DIM}${FARM_G_SEP} next${NC} $(autowake_next_str)"
     else
-        printf "  AutoWake: ${RED}%s${NC} next: %s Nodes: %s%s" \
-            "$autowake" \
-            "$next_s" \
-            "$(nodes_ratio_str)" \
-            "${cache_age:+ (${cache_age}s)}"
+        printf '%b' "   ${DIM}autowake ${FARM_G_DOT_OFF} off${NC}"
     fi
+    printf '%b' "   ${DIM}nodes${NC} $(node_dots_str) $(nodes_ratio_str)"
+    [ -n "$cache_age" ] && printf '%b' " ${DIM}(${cache_age}s)${NC}"
     tput rc
 }
 
@@ -488,17 +503,19 @@ function build_menu() {
     SHORTCUT_MAP=()
     PAIR_PARTNER=()
 
-    local autowake_s
-    if [ "$AUTOWAKE_ENABLED" -eq 1 ]; then
-        autowake_s="[ON] "
-    else
-        autowake_s="[OFF]"
-    fi
-    MENU_ENTRIES+=( "HEADER|$(menu_header "AUTOWAKE")" )
-    make_line "9" "Toggle AutoWake Timer" "$autowake_s"
-    MENU_ENTRIES+=( "ITEM|9|${PLAIN_OUT}|  ${GREEN}9${NC}) ${NC}Toggle AutoWake Timer${NC} ${autowake_s}|autowake_toggle" )
+    # New accent per build so stored item colors, headers, selection bar
+    # and footer always match.
+    apply_random_menu_theme
 
-    MENU_ENTRIES+=( "HEADER|$(menu_header "FARM SCRIPTS")" )
+    if [ "$AUTOWAKE_ENABLED" -eq 1 ]; then
+        make_line "9" "Toggle AutoWake Timer" "${FARM_G_DOT} on " "$GREEN"
+    else
+        make_line "9" "Toggle AutoWake Timer" "${FARM_G_DOT_OFF} off" "$DIM"
+    fi
+    MENU_ENTRIES+=( "HEADER|AUTOWAKE" )
+    MENU_ENTRIES+=( "ITEM|9|${PLAIN_OUT}|${COLOR_OUT}|autowake_toggle" )
+
+    MENU_ENTRIES+=( "HEADER|FARM SCRIPTS" )
     make_line "x" "Status"        ; MENU_ENTRIES+=( "ITEM|x|${PLAIN_OUT}|${COLOR_OUT}|status" )
     make_line "w" "Wake"          ; MENU_ENTRIES+=( "ITEM|w|${PLAIN_OUT}|${COLOR_OUT}|wake" )
     add_pair "v" "NVTop"     "nvtop"                    "V" "+Workstation" "nvtop_local"
@@ -508,16 +525,16 @@ function build_menu() {
     add_pair "s" "Shutdown"  "shutdown"                 "S" "+Workstation" "shutdown_local"
     add_pair "j" "Submit"    "deadline_shutdown_submit" "J" "+Workstation" "deadline_shutdown_submit_local"
 
-    MENU_ENTRIES+=( "HEADER|$(menu_header "FARM INSTALL")" )
+    MENU_ENTRIES+=( "HEADER|FARM INSTALL" )
     make_line "1" "Houdini"    ; MENU_ENTRIES+=( "ITEM|1|${PLAIN_OUT}|${COLOR_OUT}|install_houdini" )
     make_line "2" "Deadline"   ; MENU_ENTRIES+=( "ITEM|2|${PLAIN_OUT}|${COLOR_OUT}|install_deadline" )
     make_line "3" "Houdini License" ; MENU_ENTRIES+=( "ITEM|3|${PLAIN_OUT}|${COLOR_OUT}|license_houdini" )
 
-    MENU_ENTRIES+=( "HEADER|$(menu_header "WORKSTATION SCRIPTS")" )
+    MENU_ENTRIES+=( "HEADER|WORKSTATION SCRIPTS" )
     make_line "c" "Cache"                 ; MENU_ENTRIES+=( "ITEM|c|${PLAIN_OUT}|${COLOR_OUT}|cache" )
     make_line "p" "Selftest"                ; MENU_ENTRIES+=( "ITEM|p|${PLAIN_OUT}|${COLOR_OUT}|selftest" )
 
-    MENU_ENTRIES+=( "HEADER|$(menu_header "START APPLICATIONS")" )
+    MENU_ENTRIES+=( "HEADER|START APPLICATIONS" )
     make_line "h" "Houdini"                    ; MENU_ENTRIES+=( "ITEM|h|${PLAIN_OUT}|${COLOR_OUT}|houdini" )
     make_line "n" "Nuke"                       ; MENU_ENTRIES+=( "ITEM|n|${PLAIN_OUT}|${COLOR_OUT}|nuke" )
     make_line "e" "SynthEyes"                  ; MENU_ENTRIES+=( "ITEM|e|${PLAIN_OUT}|${COLOR_OUT}|syntheyes" )
@@ -525,11 +542,11 @@ function build_menu() {
     make_line "b" "Blender"                    ; MENU_ENTRIES+=( "ITEM|b|${PLAIN_OUT}|${COLOR_OUT}|blender" )
     make_line "d" "Davinci"                    ; MENU_ENTRIES+=( "ITEM|d|${PLAIN_OUT}|${COLOR_OUT}|davinci" )
 
-    MENU_ENTRIES+=( "HEADER|$(menu_header "")" )
+    MENU_ENTRIES+=( "HEADER|" )
     make_line "?" "Help" ""
-    MENU_ENTRIES+=( "ITEM|?|${PLAIN_OUT}|  ${CYAN}?${NC}) ${BOLD}Help${NC}|help" )
+    MENU_ENTRIES+=( "ITEM|?|${PLAIN_OUT}|${COLOR_OUT}|help" )
     make_line "q" "Exit" ""
-    MENU_ENTRIES+=( "ITEM|q|${PLAIN_OUT}|  ${RED}q${NC}) ${BOLD}Exit${NC}|quit" )
+    MENU_ENTRIES+=( "ITEM|q|${PLAIN_OUT}|${COLOR_OUT}|quit" )
 
     SELECTABLE=()
     for i in "${!MENU_ENTRIES[@]}"; do
@@ -604,9 +621,9 @@ function render_item() {
     printf "%-${#plain}s" " "
     tput cup "$row" 0
     if [[ "$selected" == "1" ]]; then
-        printf "${REVERSE}${plain}${NC}"
+        print_sel_full "$plain"
     else
-        printf "${colored}"
+        printf '%b' "$colored"
     fi
     tput rc
 }
@@ -615,7 +632,6 @@ function render_item() {
 # FULL RENDER
 # ---------------------------------------------------------------------------
 function render_menu() {
-    apply_random_menu_theme
     clear
     tput civis
     "$SCRIPTS/lib/header.sh"
@@ -636,7 +652,7 @@ function render_menu() {
         ENTRY_ROW[$i]=$current_row
 
         if [[ "$type" == "HEADER" ]]; then
-            printf "${CYAN}${BOLD}${label}${NC}\n"
+            render_header "$label"
             (( current_row++ ))
             if [[ "$i" == "0" ]]; then
                 POWER_STATUS_ROW=$current_row
@@ -656,21 +672,21 @@ function render_menu() {
                     local _t _s _fp _fc _a2 _ps lplain lcolored spaces rplain rcolored
                     IFS='|' read -r _t _s _fp _fc _a2 _ps lplain lcolored spaces rplain rcolored _ \
                         <<< "${MENU_ENTRIES[$i]}"
-                    printf "${REVERSE}${lplain}${NC}${spaces}${rcolored}\n"
+                    print_sel_left "$lplain" "$spaces" "$rcolored"; printf '\n'
                 elif [[ -n "$right_idx" && "$cur" == "$right_idx" ]]; then
                     # Right is selected
                     local _t _s _fp _fc _a2 _ps lplain lcolored spaces rplain rcolored
                     IFS='|' read -r _t _s _fp _fc _a2 _ps lplain lcolored spaces rplain rcolored _ \
                         <<< "${MENU_ENTRIES[$i]}"
-                    printf "${lcolored}${spaces}${REVERSE}${rplain}${NC}\n"
+                    print_sel_right "$lcolored" "$spaces" "$rplain"; printf '\n'
                 else
-                    printf "${colored}\n"
+                    printf '%b\n' "$colored"
                 fi
             else
                 if [[ "$cur" == "$i" ]]; then
-                    printf "${REVERSE}${plain}${NC}\n"
+                    print_sel_full "$plain"; printf '\n'
                 else
-                    printf "${colored}\n"
+                    printf '%b\n' "$colored"
                 fi
             fi
             (( current_row++ ))
@@ -678,7 +694,7 @@ function render_menu() {
     done
 
     printf "\n"
-    printf "  ${CYAN}↑↓ navigate   Enter/shortcut select   q quit${NC}\n"
+    printf '%b\n' "  ${DIM}${FARM_G_PTR} enter run ${FARM_G_SEP} ↑↓ move ${FARM_G_SEP} key jump ${FARM_G_SEP} q quit${NC}"
 
     render_status_line
 }

@@ -151,6 +151,15 @@ if [ "$FARM_UI_UTF8" -eq 1 ]; then
     FARM_G_OK='✔'
     FARM_G_WARN='⚠'
     FARM_G_ERR='✖'
+    FARM_G_TL='╭'
+    FARM_G_TR='╮'
+    FARM_G_BL='╰'
+    FARM_G_BR='╯'
+    FARM_G_VBAR='│'
+    FARM_G_PTR='❯'
+    FARM_G_DOT='●'
+    FARM_G_DOT_OFF='○'
+    FARM_G_SEP='·'
 else
     FARM_G_RULE='-'
     FARM_G_PROMPT='-'
@@ -158,6 +167,15 @@ else
     FARM_G_OK='[OK]'
     FARM_G_WARN='[!]'
     FARM_G_ERR='[X]'
+    FARM_G_TL='+'
+    FARM_G_TR='+'
+    FARM_G_BL='+'
+    FARM_G_BR='+'
+    FARM_G_VBAR='|'
+    FARM_G_PTR='>'
+    FARM_G_DOT='*'
+    FARM_G_DOT_OFF='.'
+    FARM_G_SEP='|'
 fi
 
 FARM_C_RESET='\033[0m'
@@ -222,10 +240,17 @@ farm_print_rule() {
 }
 
 farm_print_title() {
-    local TEXT="$1"
-    farm_print_rule
-    echo -e "${FARM_C_TITLE}  ${TEXT}${FARM_C_RESET}"
-    farm_print_rule
+    # Rounded box around the title (ASCII "+--+" on non-UTF-8 locales).
+    local TEXT="$1" width="${2:-$FARM_UI_WIDTH}"
+    local inner=$(( width - 2 )) line pad spaces
+    printf -v line "%${inner}s" ""
+    line="${line// /$FARM_G_RULE}"
+    pad=$(( inner - ${#TEXT} - 3 ))
+    (( pad < 0 )) && pad=0
+    printf -v spaces "%${pad}s" ""
+    echo -e "${FARM_C_RULE}${FARM_G_TL}${line}${FARM_G_TR}${FARM_C_RESET}"
+    echo -e "${FARM_C_RULE}${FARM_G_VBAR}${FARM_C_RESET}  ${FARM_C_TITLE}${TEXT}${FARM_C_RESET}${spaces} ${FARM_C_RULE}${FARM_G_VBAR}${FARM_C_RESET}"
+    echo -e "${FARM_C_RULE}${FARM_G_BL}${line}${FARM_G_BR}${FARM_C_RESET}"
     echo ""
 }
 

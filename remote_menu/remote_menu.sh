@@ -43,11 +43,31 @@ fi
 
 NC='\033[0m'
 BOLD='\033[1m'
-REVERSE='\033[7m'
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 CYAN='\033[0;36m'
 YELLOW='\033[1;33m'
+
+# One soft accent per run drives the shortcut keys, section headers,
+# selection bar and footer; classic ANSI fallback. Bash 3.2 compatible.
+if [ "$(tput colors 2>/dev/null || echo 8)" -ge 256 ]; then
+    ACCENTS=(81 114 176 215 117 222)
+    ACCENT_N="${ACCENTS[$(( RANDOM % ${#ACCENTS[@]} ))]}"
+    CYAN="\033[38;5;${ACCENT_N}m"
+    KEY_C="\033[1;38;5;${ACCENT_N}m"
+    # Selection bar: accent background, near-black bold text.
+    SEL_ON="\033[48;5;${ACCENT_N}m\033[38;5;235m\033[1m"
+    DIM='\033[38;5;244m'
+    GREEN='\033[38;5;114m'
+    RED='\033[1;38;5;203m'
+    YELLOW='\033[38;5;214m'
+else
+    KEY_C="\033[1m${CYAN}"
+    SEL_ON="\033[7m\033[1m"
+    DIM='\033[2m'
+fi
+PTR='❯'
+SEP='·'
 
 LINE_WIDTH=58
 MENU_ENTRIES=()
@@ -94,63 +114,80 @@ confirm_danger() {
     [[ "$confirm" =~ ^[Yy]$ ]]
 }
 
-# Section header rule: "── LABEL ─────…" padded to menu width.
+# Section header: "  ── LABEL ────…" — dim rule, accent label. Headers
+# are stored as bare labels and colored at render time.
 # Plain bash 3.2 constructs only (macOS default bash).
-menu_header() {
-    local label="$1" width=59 line="" fill=0 i=0
+render_header() {
+    local label="$1" width=$LINE_WIDTH line="" fill=0 i=0
     if [ -n "$label" ]; then
-        line="── ${label} "
-        fill=$(( width - ${#line} ))
+        fill=$(( width - ${#label} - 6 ))
+        [ "$fill" -lt 0 ] && fill=0
     else
-        fill=$width
+        fill=$(( width - 2 ))
     fi
     while [ "$i" -lt "$fill" ]; do line="${line}─"; i=$((i+1)); done
-    printf '%s' "$line"
+    if [ -n "$label" ]; then
+        printf '%b\n' "  ${DIM}──${NC} ${BOLD}${CYAN}${label}${NC} ${DIM}${line}${NC}"
+    else
+        printf '%b\n' "  ${DIM}${line}${NC}"
+    fi
+}
+
+# Shortcut key color: accent by default, warn for destructive actions,
+# red for exit.
+key_color() {
+    case "$1" in
+        x|u) printf '%s' "$YELLOW" ;;
+        q)   printf '%s' "$RED" ;;
+        *)   printf '%s' "$KEY_C" ;;
+    esac
 }
 
 make_line() {
     local shortcut="$1" label="$2" hint="$3"
-    local prefix="  ${shortcut}) "
+    local prefix="   ${shortcut}  "
     local plain="${prefix}${label}"
     local pad=$(( LINE_WIDTH - ${#plain} - ${#hint} ))
     (( pad < 1 )) && pad=1
     local spaces
     printf -v spaces "%${pad}s" ""
     PLAIN_OUT="${prefix}${label}${spaces}${hint}"
-    COLOR_OUT="  ${GREEN}${shortcut}${NC}) ${label}${spaces}${hint}"
-    if [[ "$shortcut" == "q" ]]; then
-        COLOR_OUT="  ${RED}${shortcut}${NC}) ${BOLD}${label}${NC}${spaces}${hint}"
-    fi
+    COLOR_OUT="   $(key_color "$shortcut")${shortcut}${NC}  ${label}${DIM}${spaces}${hint}${NC}"
+}
+
+# Selected row: accent bar + pointer, replacing the row's leading pad.
+print_sel_full() {
+    printf '%b%s%b' "$SEL_ON" " ${PTR}${1:2}" "$NC"
 }
 
 build_menu() {
     MENU_ENTRIES=()
     SELECTABLE=()
 
-    MENU_ENTRIES+=( "HEADER|$(menu_header "STATUS")" )
+    MENU_ENTRIES+=( "HEADER|STATUS" )
     make_line "s" "Ping"     "Ping remote nodes"
     MENU_ENTRIES+=( "ITEM|s|${PLAIN_OUT}|${COLOR_OUT}|status" )
     make_line "f" "Login"    "SSH to workstation farm menu"
     MENU_ENTRIES+=( "ITEM|f|${PLAIN_OUT}|${COLOR_OUT}|farm" )
-    MENU_ENTRIES+=( "HEADER|$(menu_header "START")" )
+    MENU_ENTRIES+=( "HEADER|START" )
     make_line "w" "Start"    "Wake + mount + connect"
     MENU_ENTRIES+=( "ITEM|w|${PLAIN_OUT}|${COLOR_OUT}|wake" )
-    MENU_ENTRIES+=( "HEADER|$(menu_header "SHARES")" )
+    MENU_ENTRIES+=( "HEADER|SHARES" )
     make_line "m" "Mount"     "Mount shares (Tailscale)"
     MENU_ENTRIES+=( "ITEM|m|${PLAIN_OUT}|${COLOR_OUT}|mount" )
     make_line "l" "Mount LAN" "Mount shares via local network"
     MENU_ENTRIES+=( "ITEM|l|${PLAIN_OUT}|${COLOR_OUT}|mount_local" )
     make_line "u" "Unmount"   "Unmount all remote shares"
     MENU_ENTRIES+=( "ITEM|u|${PLAIN_OUT}|${COLOR_OUT}|unmount" )
-    MENU_ENTRIES+=( "HEADER|$(menu_header "MAINTENANCE")" )
+    MENU_ENTRIES+=( "HEADER|MAINTENANCE" )
     make_line "c" "Cache"    "Purge local caches"
     MENU_ENTRIES+=( "ITEM|c|${PLAIN_OUT}|${COLOR_OUT}|delcache" )
-    MENU_ENTRIES+=( "HEADER|$(menu_header "SHUTDOWN")" )
+    MENU_ENTRIES+=( "HEADER|SHUTDOWN" )
     make_line "x" "Shutdown" "Shutdown remote linux workstation & nodes"
     MENU_ENTRIES+=( "ITEM|x|${PLAIN_OUT}|${COLOR_OUT}|shutdown_remote" )
-    MENU_ENTRIES+=( "HEADER|$(menu_header "")" )
+    MENU_ENTRIES+=( "HEADER|" )
     make_line "q" "Exit" ""
-    MENU_ENTRIES+=( "ITEM|q|${PLAIN_OUT}|  ${RED}q${NC}) ${BOLD}Exit${NC}|quit" )
+    MENU_ENTRIES+=( "ITEM|q|${PLAIN_OUT}|${COLOR_OUT}|quit" )
 
     local i type
     for i in "${!MENU_ENTRIES[@]}"; do
@@ -201,7 +238,7 @@ render_item() {
     printf "%-${#plain}s" " "
     tput cup "$row" 0
     if [[ "$selected" == "1" ]]; then
-        printf '%b%s%b' "$REVERSE" "$plain" "$NC"
+        print_sel_full "$plain"
     else
         printf '%b' "$colored"
     fi
@@ -212,12 +249,11 @@ render_menu() {
     clear
     tput civis
     if [ "$HAS_LOGO" -eq 1 ] && declare -F print_logo >/dev/null 2>&1; then
-        local logo_color="$CYAN"
-        if declare -p THEME_COLORS >/dev/null 2>&1; then
-            logo_color="${THEME_COLORS[$RANDOM % ${#THEME_COLORS[@]}]}"
+        if declare -F pick_gradient >/dev/null 2>&1; then
+            print_logo "$(pick_gradient)"
+        else
+            print_logo "$CYAN"
         fi
-        print_logo "$logo_color"
-        printf "${NC}\n"
     fi
 
     local current_row i type label plain colored
@@ -233,11 +269,11 @@ render_menu() {
 
         ENTRY_ROW[$i]=$current_row
         if [[ "$type" == "HEADER" ]]; then
-            printf '%b%s%b\n' "${CYAN}${BOLD}" "$label" "$NC"
+            render_header "$label"
             (( current_row++ ))
         else
             if [[ "${SELECTABLE[$SELECTED_IDX]}" == "$i" ]]; then
-                printf '%b%s%b\n' "$REVERSE" "$plain" "$NC"
+                print_sel_full "$plain"; printf '\n'
             else
                 printf '%b\n' "$colored"
             fi
@@ -246,7 +282,7 @@ render_menu() {
     done
 
     printf "\n"
-    printf "  ${CYAN}↑↓ navigate   Enter/shortcut select   q quit${NC}\n"
+    printf '%b\n' "  ${DIM}${PTR} enter run ${SEP} ↑↓ move ${SEP} key jump ${SEP} q quit${NC}"
 }
 
 run_action() {
