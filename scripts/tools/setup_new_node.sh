@@ -52,8 +52,14 @@ trap 'on_error $LINENO' ERR
 #
 #     4. After setup: connect Tailscale and license Houdini
 #        sudo tailscale up
-#        sudo /usr/lib/sesi/sesictrl login
-#        sudo /usr/lib/sesi/sesictrl redeem
+#        Then add the node to FARM_NODE_DEFS in config/secrets.sh and
+#        run farm menu option 3 (license_houdini.sh) from the
+#        workstation — or license directly on the node:
+#        sudo /usr/lib/sesi/sesictrl redeem --email <sidefx-email> --password <pass>
+#        (no separate "login" step: sesictrl sessions do not persist
+#        between invocations, so pass credentials to redeem itself.
+#        Review the redeem list before pressing f — only install what
+#        this machine actually needs.)
 #
 #   The script is idempotent — safe to re-run after errors or
 #   reboots. Progress is tracked in /var/tmp/render-node-setup.state.
@@ -1156,17 +1162,15 @@ HOUDINI
   /opt/hfs*/                         Houdini install (version-stamped dir)
   ~/houdini*/packages/deadline.json  Deadline submission plugin path config
   /usr/lib/sesi/licenses.client      License server pointer (set to localhost)
-  /usr/lib/sesi/hserver/hserver.ini  Hserver config (APIKey for online licensing)
 
-  Licensing commands:
-    sudo /usr/lib/sesi/sesictrl login
-    sudo /usr/lib/sesi/sesictrl redeem
+  Licensing commands (local sesinetd — the farm workflow):
     sudo /usr/lib/sesi/sesictrl print-license
-
-  Online licensing (SideFX.com):
-    Create app at https://www.sidefx.com/oauth2/applications
-    Client type: confidential  |  Auth type: authorization code  |  Redirect: http://localhost
-    Edit: sudo nano /usr/lib/sesi/hserver/hserver.ini  → APIKey=<ID> <SECRET>
+    sudo /usr/lib/sesi/sesictrl redeem --email <sidefx-email> --password <pass>
+      (no separate "login" step — sesictrl sessions do not persist
+      between invocations; --email/--password is the only
+      non-interactive login. Review the list before pressing f.)
+    Or from the workstation: add this node to FARM_NODE_DEFS in
+    config/secrets.sh and use farm menu option 3 (license_houdini.sh).
 
 NETWORK
 EOF
@@ -1216,17 +1220,14 @@ echo "------------------------------------------------"
 echo "IP: $NODE_IP | WoL auf Interface: $NIC"
 echo "------------------------------------------------"
 echo "Houdini Lizensierung:"
-echo "sudo /usr/lib/sesi/sesictrl login"
-echo "sudo /usr/lib/sesi/sesictrl redeem"
-echo "------------------------------------------------"
-echo "ALTERNATIVE: Online Licensing"
-echo "API Key auf https://www.sidefx.com/oauth2/applications erstellen"
-echo "Client type: confidental, Auth type: authorization codeset"
-echo "Redirect uris: http://localhost"
-echo "/opt/hfs21.0/bin/hserver -S https://www.sidefx.com/license/sesinetd"
-echo "sudo nano /usr/lib/sesi/hserver/hserver.ini"
-echo "APIKey=ID SECRET"
+echo "Node in FARM_NODE_DEFS (config/secrets.sh) eintragen, dann vom"
+echo "Workstation aus: Farm-Menü Option 3 (license_houdini.sh)."
+echo "Oder direkt auf dem Node:"
+echo "sudo /usr/lib/sesi/sesictrl redeem --email <sidefx-email> --password <pass>"
 echo "sudo /usr/lib/sesi/sesictrl print-license"
+echo "(Kein separates 'login' — Sessions halten nicht zwischen"
+echo "sesictrl-Aufrufen. Liste vor 'f' pruefen, nur installieren was"
+echo "der Node wirklich braucht.)"
 echo "------------------------------------------------"
 echo "Aktive Netzwerk-Interfaces:"
 echo "$(ip a)"

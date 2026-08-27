@@ -859,7 +859,7 @@ fi
 echo "[$NAME] Killing Houdini render processes (husk/mantra)..."
 ssh -F ~/.ssh/config -o LogLevel=ERROR $NAME "pkill -KILL -x husk 2>/dev/null && echo '  husk killed' || echo '  husk: none'; pkill -KILL -x mantra 2>/dev/null && echo '  mantra killed' || echo '  mantra: none'"
 echo "[$NAME] Rebooting..."
-ssh -F ~/.ssh/config -o LogLevel=ERROR $NAME "systemctl reboot"
+ssh -F ~/.ssh/config -o LogLevel=ERROR $NAME "sudo -n systemctl reboot"
 echo ""
 echo -e "${FARM_C_OK}$NAME: rebooting to Linux...${FARM_C_RESET}"
 sleep 3
@@ -867,7 +867,7 @@ EOF
     }
 
     local CMD_SSH_REBOOT
-    CMD_SSH_REBOOT="echo ''; echo '------------------------------'; echo 'REBOOT INITIATED'; echo '------------------------------'; echo 'Killing Houdini render processes (husk/mantra)...'; pkill -KILL -x husk 2>/dev/null && echo '  husk killed' || echo '  husk: none'; pkill -KILL -x mantra 2>/dev/null && echo '  mantra killed' || echo '  mantra: none'; echo 'Reboot in 2...'; sleep 1; echo 'Reboot in 1...'; sleep 1; echo 'See you on the other side.'; systemctl reboot"
+    CMD_SSH_REBOOT="echo ''; echo '------------------------------'; echo 'REBOOT INITIATED'; echo '------------------------------'; echo 'Killing Houdini render processes (husk/mantra)...'; pkill -KILL -x husk 2>/dev/null && echo '  husk killed' || echo '  husk: none'; pkill -KILL -x mantra 2>/dev/null && echo '  mantra killed' || echo '  mantra: none'; echo 'Reboot in 2...'; sleep 1; echo 'Reboot in 1...'; sleep 1; echo 'See you on the other side.'; sudo -n systemctl reboot"
 
     # ── initial table render ──────────────────────────────────────────────────
     echo ""
@@ -1122,7 +1122,9 @@ EOF
             echo ""
         fi
         if local_reboot_countdown 10; then
-            systemctl reboot
+            # Over ssh, plain "systemctl reboot" hits a polkit auth challenge;
+            # the workstation whitelists /usr/sbin/reboot in sudoers (NOPASSWD).
+            sudo -n /usr/sbin/reboot 2>/dev/null || systemctl reboot
         else
             echo ""
             echo "Local machine stays on."

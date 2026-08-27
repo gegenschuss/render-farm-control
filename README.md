@@ -422,6 +422,7 @@ scripts/
 
     tools/                          Utilities and launchers
         install_app.sh                  Deploy software to farm nodes
+        license_houdini.sh              Update Houdini license on all machines
         doctor.sh                       Dependency and connectivity checker
         selftest.sh                     Regression smoke test suite
         debug.sh                        Check Windows update activity on dual-boot
@@ -580,6 +581,7 @@ Tailscale-based remote control from a Mac laptop. Located in `remote_menu/`.
 | `doctor.sh` | Validate dependencies, Deadline connectivity, SSH access |
 | `selftest.sh` | Syntax check + safe dry-runs + doctor (`--quick` for fast) |
 | `install_app.sh` | Deploy Houdini/Deadline to selected nodes via tmux (version-aware) |
+| `license_houdini.sh` | Update the Houdini license on all Linux machines via tmux (`sesictrl` login/redeem) |
 | `debug.sh` | Check Windows Update activity on dual-boot nodes |
 | `launch_houdini.sh` | Launch latest Houdini from `/opt` |
 | `launch_nuke.sh` | Launch latest Nuke |
@@ -615,6 +617,44 @@ forced to reinstall:
 The chosen nodes install in parallel in a synchronized tmux session
 (`Ctrl+b, y` toggles broadcast to all panes). Offline and Windows-booted
 nodes are detected over SSH and skipped automatically.
+
+#### Updating the Houdini license (`license_houdini.sh`)
+
+```bash
+./scripts/tools/license_houdini.sh          # prompts for local workstation
+./scripts/tools/license_houdini.sh --local  # include workstation, no prompt
+```
+
+Also available from the interactive menu (option `3`, FARM INSTALL section).
+The pre-flight lists each reachable machine with the license version it
+currently has installed (e.g. `licenses: 22.0 - will check`); whether an
+upgrade is actually pending shows in each pane's redeem list. It then opens
+one tmux pane per reachable Linux machine running:
+
+```
+print-license  ->  redeem (interactive)  ->  print-license
+```
+
+Version upgrades (e.g. 21.0 -> 22.0) appear in each machine's redeem list
+as `modification ... (upgraded from 21.0)` entitlements: they upgrade the
+licenses **already on that machine** in place and consume nothing. Review
+the list and press **`f`** to install or **`q`** to skip -- with panes
+synchronized (the default) one keypress answers every machine at once.
+Unselect (by number) anything that is *not* such a modification upgrade,
+unless you deliberately want that new license assigned to that machine --
+e.g. one newly bought license for one node, with panes unsynced
+(`Ctrl+b, y`). Note that `sesictrl sync-licenses` can **not** perform
+version upgrades (it fails with `Failed to install 00000000`); redeem is
+the correct path.
+
+Credentials come from `FARM_SIDEFX_EMAIL`/`FARM_SIDEFX_PASSWORD` in
+`config/secrets.sh` (gitignored) or are asked once per run, and are passed
+to `redeem` via `--email`/`--password` -- the only non-interactive auth
+`sesictrl` supports (its oauth2 API-key flags are ignored by current
+builds, and login sessions don't persist between invocations). The
+workstation pane may additionally ask for your local sudo password once --
+nodes have passwordless sudo, the workstation does not. Offline and
+Windows-booted nodes are skipped automatically.
 
 ---
 

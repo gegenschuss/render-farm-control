@@ -38,8 +38,10 @@ export NUKE_TEMP_DIR="$FARM_LINUX_HOME/.cache/nuke/"
 
 
 # 2. Find the newest Nuke installation in /opt
-# This looks for directories matching Nuke* (e.g., /opt/Nuke16.0v1)
-LATEST_INSTALL=$(printf '%s\n' /opt/Nuke* 2>/dev/null | sort -V | tail -n 1)
+# This looks for directories matching Nuke* (e.g., /opt/Nuke16.0v1).
+# Trailing slash keeps stray files like Nuke*.run installers out of the match.
+LATEST_INSTALL=$(printf '%s\n' /opt/Nuke*/ 2>/dev/null | sort -V | tail -n 1)
+LATEST_INSTALL=${LATEST_INSTALL%/}
 
 if [ -z "$LATEST_INSTALL" ]; then
     echo "Error: No Nuke installation found in /opt"

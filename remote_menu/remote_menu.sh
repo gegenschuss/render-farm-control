@@ -55,16 +55,57 @@ SELECTABLE=()
 ENTRY_ROW=()
 SELECTED_IDX=0
 
-trap 'clear; tput cnorm; printf "\n${GREEN}Exiting Remote Menu.${NC}\n"; exit 0' SIGINT SIGTERM
+cleanup() {
+    stty sane 2>/dev/null
+    tput cnorm
+}
+trap cleanup EXIT
+
+quit_menu() {
+    clear
+    printf "\n${GREEN}Exiting Remote Menu.${NC}\n"
+    exit 0
+}
+trap quit_menu SIGINT SIGTERM
+
+IN_MENU=0
+handle_resize() {
+    (( IN_MENU )) && render_menu
+}
+trap handle_resize SIGWINCH
+
+# Run a child command with Ctrl-C interrupting only the child, not the menu.
+run_child() {
+    local ret
+    trap ':' SIGINT
+    "$@"
+    ret=$?
+    trap quit_menu SIGINT
+    return $ret
+}
 
 confirm_danger() {
     local action_label="$1"
     tput cnorm
-    printf "\n${YELLOW}${BOLD}ATTENTION:${NC} You are about to ${RED}%s${NC}\n" "$action_label"
+    printf "\n${YELLOW}${BOLD}⚠ ATTENTION:${NC} You are about to ${RED}%s${NC}\n" "$action_label"
     read -n 1 -r -p "$(printf "${RED}Are you sure? [y/N]: ${NC}")" confirm
     printf "\n"
     tput civis
     [[ "$confirm" =~ ^[Yy]$ ]]
+}
+
+# Section header rule: "── LABEL ─────…" padded to menu width.
+# Plain bash 3.2 constructs only (macOS default bash).
+menu_header() {
+    local label="$1" width=59 line="" fill=0 i=0
+    if [ -n "$label" ]; then
+        line="── ${label} "
+        fill=$(( width - ${#line} ))
+    else
+        fill=$width
+    fi
+    while [ "$i" -lt "$fill" ]; do line="${line}─"; i=$((i+1)); done
+    printf '%s' "$line"
 }
 
 make_line() {
@@ -86,28 +127,28 @@ build_menu() {
     MENU_ENTRIES=()
     SELECTABLE=()
 
-    MENU_ENTRIES+=( "HEADER|=== STATUS ================================================" )
+    MENU_ENTRIES+=( "HEADER|$(menu_header "STATUS")" )
     make_line "s" "Ping"     "Ping remote nodes"
     MENU_ENTRIES+=( "ITEM|s|${PLAIN_OUT}|${COLOR_OUT}|status" )
     make_line "f" "Login"    "SSH to workstation farm menu"
     MENU_ENTRIES+=( "ITEM|f|${PLAIN_OUT}|${COLOR_OUT}|farm" )
-    MENU_ENTRIES+=( "HEADER|=== START =================================================" )
+    MENU_ENTRIES+=( "HEADER|$(menu_header "START")" )
     make_line "w" "Start"    "Wake + mount + connect"
     MENU_ENTRIES+=( "ITEM|w|${PLAIN_OUT}|${COLOR_OUT}|wake" )
-    MENU_ENTRIES+=( "HEADER|=== SHARES ================================================" )
+    MENU_ENTRIES+=( "HEADER|$(menu_header "SHARES")" )
     make_line "m" "Mount"     "Mount shares (Tailscale)"
     MENU_ENTRIES+=( "ITEM|m|${PLAIN_OUT}|${COLOR_OUT}|mount" )
     make_line "l" "Mount LAN" "Mount shares via local network"
     MENU_ENTRIES+=( "ITEM|l|${PLAIN_OUT}|${COLOR_OUT}|mount_local" )
     make_line "u" "Unmount"   "Unmount all remote shares"
     MENU_ENTRIES+=( "ITEM|u|${PLAIN_OUT}|${COLOR_OUT}|unmount" )
-    MENU_ENTRIES+=( "HEADER|=== MAINTENANCE ===========================================" )
+    MENU_ENTRIES+=( "HEADER|$(menu_header "MAINTENANCE")" )
     make_line "c" "Cache"    "Purge local caches"
     MENU_ENTRIES+=( "ITEM|c|${PLAIN_OUT}|${COLOR_OUT}|delcache" )
-    MENU_ENTRIES+=( "HEADER|=== SHUTDOWN ==============================================" )
+    MENU_ENTRIES+=( "HEADER|$(menu_header "SHUTDOWN")" )
     make_line "x" "Shutdown" "Shutdown remote linux workstation & nodes"
     MENU_ENTRIES+=( "ITEM|x|${PLAIN_OUT}|${COLOR_OUT}|shutdown_remote" )
-    MENU_ENTRIES+=( "HEADER|===========================================================" )
+    MENU_ENTRIES+=( "HEADER|$(menu_header "")" )
     make_line "q" "Exit" ""
     MENU_ENTRIES+=( "ITEM|q|${PLAIN_OUT}|  ${RED}q${NC}) ${BOLD}Exit${NC}|quit" )
 
@@ -160,9 +201,9 @@ render_item() {
     printf "%-${#plain}s" " "
     tput cup "$row" 0
     if [[ "$selected" == "1" ]]; then
-        printf "${REVERSE}${plain}${NC}"
+        printf '%b%s%b' "$REVERSE" "$plain" "$NC"
     else
-        printf "${colored}"
+        printf '%b' "$colored"
     fi
     tput rc
 }
@@ -192,13 +233,13 @@ render_menu() {
 
         ENTRY_ROW[$i]=$current_row
         if [[ "$type" == "HEADER" ]]; then
-            printf "${CYAN}${BOLD}${label}${NC}\n"
+            printf '%b%s%b\n' "${CYAN}${BOLD}" "$label" "$NC"
             (( current_row++ ))
         else
             if [[ "${SELECTABLE[$SELECTED_IDX]}" == "$i" ]]; then
-                printf "${REVERSE}${plain}${NC}\n"
+                printf '%b%s%b\n' "$REVERSE" "$plain" "$NC"
             else
-                printf "${colored}\n"
+                printf '%b\n' "$colored"
             fi
             (( current_row++ ))
         fi
@@ -213,22 +254,22 @@ run_action() {
     case "$action" in
         status)
             printf "\n${CYAN}Running remote status...${NC}\n\n"
-            bash "$SCRIPT_DIR/core/ping.sh"
+            run_child bash "$SCRIPT_DIR/core/ping.sh"
             return 0
             ;;
         wake)
             printf "\n${CYAN}Running remote wake...${NC}\n\n"
-            bash "$SCRIPT_DIR/core/wake.sh"
+            run_child bash "$SCRIPT_DIR/core/wake.sh"
             return 0
             ;;
         mount)
             printf "\n${CYAN}Mounting remote shares...${NC}\n\n"
-            bash "$SCRIPT_DIR/core/mount.sh"
+            run_child bash "$SCRIPT_DIR/core/mount.sh"
             return 0
             ;;
         mount_local)
             printf "\n${CYAN}Mounting shares via local network...${NC}\n\n"
-            bash "$SCRIPT_DIR/core/mount.sh" --local
+            run_child bash "$SCRIPT_DIR/core/mount.sh" --local
             return 0
             ;;
         shutdown_remote)
@@ -236,7 +277,7 @@ run_action() {
                 printf "${YELLOW}Shutdown cancelled.${NC}\n"
                 return 0
             fi
-            bash "$SCRIPT_DIR/core/shutdown.sh"
+            run_child bash "$SCRIPT_DIR/core/shutdown.sh"
             return 0
             ;;
         unmount)
@@ -245,24 +286,26 @@ run_action() {
                 return 0
             fi
             printf "\n${CYAN}Running remote unmount...${NC}\n\n"
-            bash "$SCRIPT_DIR/core/unmount.sh"
+            run_child bash "$SCRIPT_DIR/core/unmount.sh"
             return 0
             ;;
         delcache)
             printf "\n${CYAN}Running local cache cleanup...${NC}\n\n"
-            bash "$SCRIPT_DIR/core/delcache.sh"
+            run_child bash "$SCRIPT_DIR/core/delcache.sh"
             return 0
             ;;
         farm)
+            if [[ -z "${WORKSTATION_SSH_HOST:-}" || -z "${FARM_SCRIPT_PATH:-}" ]]; then
+                printf "\n${RED}ERROR:${NC} WORKSTATION_SSH_HOST / FARM_SCRIPT_PATH not set.\n"
+                printf "Copy config/secrets.example.sh to config/secrets.sh and fill in your values.\n"
+                return 0
+            fi
             printf "\n${CYAN}Connecting to workstation farm menu...${NC}\n\n"
-            ssh -t "$WORKSTATION_SSH_HOST" "$FARM_SCRIPT_PATH; bash -l"
+            run_child ssh -t "$WORKSTATION_SSH_HOST" "$FARM_SCRIPT_PATH; bash -l"
             return 1
             ;;
         quit)
-            clear
-            tput cnorm
-            printf "\n${GREEN}Exiting Remote Menu.${NC}\n"
-            exit 0
+            quit_menu
             ;;
     esac
     return 0
@@ -271,6 +314,7 @@ run_action() {
 execute_selected() {
     local action ret
     IFS='|' read -r _ _ _ _ action <<< "${MENU_ENTRIES[${SELECTABLE[$SELECTED_IDX]}]}"
+    IN_MENU=0
     tput cnorm
     run_action "$action"
     ret=$?
@@ -284,6 +328,7 @@ execute_selected() {
         read -n 1 -s -r -p "Press any key to return to the menu..."
     fi
     render_menu
+    IN_MENU=1
     tput cnorm
 }
 
@@ -292,6 +337,7 @@ SELECTED_IDX=0
 
 tput civis
 render_menu
+IN_MENU=1
 tput cnorm
 
 while true; do
@@ -327,12 +373,11 @@ while true; do
         esac
     elif [[ $ret -eq 0 && "$key" == "" ]]; then
         execute_selected
-    elif [[ "$key" == "q" ]]; then
-        clear
-        tput cnorm
-        printf "\n${GREEN}Exiting Remote Menu.${NC}\n"
-        exit 0
     elif [[ -n "$key" ]]; then
+        key="$(printf '%s' "$key" | tr '[:upper:]' '[:lower:]')"
+        if [[ "$key" == "q" ]]; then
+            quit_menu
+        fi
         idx="$(entry_index_for_shortcut "$key")"
         if [[ -n "$idx" ]]; then
             old="${SELECTABLE[$SELECTED_IDX]}"

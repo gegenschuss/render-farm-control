@@ -1,7 +1,13 @@
 #!/bin/bash
 
 # === LOGO ANIMATION MODULE START ===
-THEME_COLORS=('\033[0;31m' '\033[0;32m' '\033[0;33m' '\033[0;34m' '\033[0;35m' '\033[1;31m' '\033[1;32m' '\033[1;33m' '\033[1;34m' '\033[1;35m' '\033[1;36m')
+# Soft 256-color accents on capable terminals (mac + linux), classic
+# ANSI colors as fallback.
+if [ "$(tput colors 2>/dev/null || echo 8)" -ge 256 ]; then
+    THEME_COLORS=('\033[38;5;81m' '\033[38;5;114m' '\033[38;5;176m' '\033[38;5;215m' '\033[38;5;117m' '\033[38;5;222m' '\033[38;5;210m')
+else
+    THEME_COLORS=('\033[0;31m' '\033[0;32m' '\033[0;33m' '\033[0;34m' '\033[0;35m' '\033[1;31m' '\033[1;32m' '\033[1;33m' '\033[1;34m' '\033[1;35m' '\033[1;36m')
+fi
 BOLD='\033[1m'
 NC='\033[0m' 
 

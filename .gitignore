@@ -9,3 +9,9 @@ remote_menu/config/secrets.sh
 __pycache__/
 *.pyc
 .DS_Store
+
+# SMB temp files
+.__smb*
+
+# macOS Finder custom icon (name contains CR)
+Icon

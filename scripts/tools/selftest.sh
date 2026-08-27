@@ -56,6 +56,7 @@ if bash -c 'declare -A __farm_test_assoc' >/dev/null 2>&1; then
     "$FARM_SCRIPTS_DIR/core/node_session.sh" nvtop --help >/dev/null || exit 1
     "$FARM_SCRIPTS_DIR/tools/install_app.sh" deadline --help >/dev/null || exit 1
     "$FARM_SCRIPTS_DIR/tools/install_app.sh" houdini --help >/dev/null || exit 1
+    "$FARM_SCRIPTS_DIR/tools/license_houdini.sh" --help >/dev/null || exit 1
     "$FARM_SCRIPTS_DIR/core/power_action.sh" shutdown --help >/dev/null || exit 1
     "$FARM_SCRIPTS_DIR/core/power_action.sh" reboot --help >/dev/null || exit 1
 else

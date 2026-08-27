@@ -84,7 +84,9 @@ farm_print_section "Checking node status"
 echo ""
 declare -A NODE_OS
 for NODE in "${NODES[@]}"; do
-    farm_get_node_os_status "$NODE" "ping"
+    # Probe over ssh (the same channel the update runs on) rather than a
+    # bare-name ping - see install_app.sh for why ping can disagree.
+    farm_get_node_os_status "$NODE" "ssh"
     NODE_OS[$NODE]=$?
     case ${NODE_OS[$NODE]} in
         0)
@@ -107,7 +109,7 @@ done
 if [[ "$UPDATE_LOCAL" =~ ^[Yy]$ ]]; then
     echo "$(farm_node_tag "$FARM_LOCAL_NAME") local workstation - will update"
 else
-    echo "$(farm_node_tag "$FARM_LOCAL_NAME") local workstation - skipped"
+    echo "$(farm_node_tag "$FARM_LOCAL_NAME") local workstation - skipped (use --local / menu U to include)"
 fi
 
 echo ""
@@ -145,6 +147,12 @@ done
 # --- LOCAL WORKSTATION PANE ---
 if [[ "$UPDATE_LOCAL" == "y" || "$UPDATE_LOCAL" == "Y" ]]; then
     farm_tmux_add_pane "$SESSION" "$LOCAL_CMD" "$FARM_LOCAL_NAME"
+fi
+
+if ! tmux has-session -t "$SESSION" 2>/dev/null; then
+    farm_print_warn "No eligible machines - nothing to do."
+    echo ""
+    exit 0
 fi
 
 # --- APPLY SHARED TMUX CONFIG ---

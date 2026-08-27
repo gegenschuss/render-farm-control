@@ -66,6 +66,8 @@ sub "usage:" "shutdown|reboot [flags]"
 echo ""
 sec "INSTALLERS"
 cmd "install_app.sh" "houdini | deadline"
+cmd "license_houdini.sh" "Update Houdini license (sesictrl)"
+sub "flags:" "--yes --dry-run --local --no-local"
 
 echo ""
 sec "UTILITIES"

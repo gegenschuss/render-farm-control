@@ -57,6 +57,14 @@ FARM_WORKSTATION_MAC="AA:BB:CC:DD:EE:FF"
 FARM_INSTALL_DIR_DEADLINE="/mnt/studio/install/deadline"
 FARM_INSTALL_DIR_HOUDINI="/mnt/studio/install/houdini"
 
+# --- SideFX Account (license_houdini.sh) ---
+# Used for non-interactive "sesictrl login --email --password" on every
+# machine (the only non-interactive login sesictrl supports; its oauth2
+# API-key flags are ignored by current builds). Leave empty to be asked
+# once per run instead.
+FARM_SIDEFX_EMAIL=""
+FARM_SIDEFX_PASSWORD=""
+
 # --- Node Setup (setup_new_node.sh) ---
 # Edit these before running setup on a new node.
 SETUP_NODE_NAME="node-01"

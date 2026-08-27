@@ -36,12 +36,25 @@ RED="$FARM_C_ERR"
 YELLOW="$FARM_C_WARN"
 
 function apply_random_menu_theme() {
-    local palettes=(
-        "CYAN=\033[0;36m"
-        "CYAN=\033[1;34m"
-        "CYAN=\033[1;35m"
-        "CYAN=\033[1;33m"
-    )
+    # One soft accent per redraw; falls back to classic ANSI colors on
+    # terminals without 256-color support.
+    if [ "${FARM_UI_256:-0}" -eq 1 ]; then
+        local palettes=(
+            "CYAN=\033[38;5;81m"
+            "CYAN=\033[38;5;114m"
+            "CYAN=\033[38;5;176m"
+            "CYAN=\033[38;5;215m"
+            "CYAN=\033[38;5;117m"
+            "CYAN=\033[38;5;222m"
+        )
+    else
+        local palettes=(
+            "CYAN=\033[0;36m"
+            "CYAN=\033[1;34m"
+            "CYAN=\033[1;35m"
+            "CYAN=\033[1;33m"
+        )
+    fi
     local idx=$(( RANDOM % ${#palettes[@]} ))
     local entry="${palettes[$idx]}"
     local part
@@ -107,6 +120,22 @@ function handle_sigusr1() {
     render_status_line
 
     tput cnorm
+}
+
+# ---------------------------------------------------------------------------
+# HELPER: build a section header rule ("── LABEL ─────…" to menu width)
+# ---------------------------------------------------------------------------
+function menu_header() {
+    local label="$1" width=60 line="" fill i
+    local g="${FARM_G_RULE:-─}"
+    if [[ -n "$label" ]]; then
+        line="${g}${g} ${label} "
+        fill=$(( width - ${#line} ))
+    else
+        fill=$width
+    fi
+    for (( i=0; i<fill; i++ )); do line+="$g"; done
+    printf '%s' "$line"
 }
 
 # ---------------------------------------------------------------------------
@@ -465,11 +494,11 @@ function build_menu() {
     else
         autowake_s="[OFF]"
     fi
-    MENU_ENTRIES+=( "HEADER|=== AUTOWAKE ===============================================" )
+    MENU_ENTRIES+=( "HEADER|$(menu_header "AUTOWAKE")" )
     make_line "9" "Toggle AutoWake Timer" "$autowake_s"
     MENU_ENTRIES+=( "ITEM|9|${PLAIN_OUT}|  ${GREEN}9${NC}) ${NC}Toggle AutoWake Timer${NC} ${autowake_s}|autowake_toggle" )
 
-    MENU_ENTRIES+=( "HEADER|=== FARM SCRIPTS ===========================================" )
+    MENU_ENTRIES+=( "HEADER|$(menu_header "FARM SCRIPTS")" )
     make_line "x" "Status"        ; MENU_ENTRIES+=( "ITEM|x|${PLAIN_OUT}|${COLOR_OUT}|status" )
     make_line "w" "Wake"          ; MENU_ENTRIES+=( "ITEM|w|${PLAIN_OUT}|${COLOR_OUT}|wake" )
     add_pair "v" "NVTop"     "nvtop"                    "V" "+Workstation" "nvtop_local"
@@ -479,15 +508,16 @@ function build_menu() {
     add_pair "s" "Shutdown"  "shutdown"                 "S" "+Workstation" "shutdown_local"
     add_pair "j" "Submit"    "deadline_shutdown_submit" "J" "+Workstation" "deadline_shutdown_submit_local"
 
-    MENU_ENTRIES+=( "HEADER|=== FARM INSTALL ===========================================" )
+    MENU_ENTRIES+=( "HEADER|$(menu_header "FARM INSTALL")" )
     make_line "1" "Houdini"    ; MENU_ENTRIES+=( "ITEM|1|${PLAIN_OUT}|${COLOR_OUT}|install_houdini" )
     make_line "2" "Deadline"   ; MENU_ENTRIES+=( "ITEM|2|${PLAIN_OUT}|${COLOR_OUT}|install_deadline" )
+    make_line "3" "Houdini License" ; MENU_ENTRIES+=( "ITEM|3|${PLAIN_OUT}|${COLOR_OUT}|license_houdini" )
 
-    MENU_ENTRIES+=( "HEADER|=== WORKSTATION SCRIPTS ====================================" )
+    MENU_ENTRIES+=( "HEADER|$(menu_header "WORKSTATION SCRIPTS")" )
     make_line "c" "Cache"                 ; MENU_ENTRIES+=( "ITEM|c|${PLAIN_OUT}|${COLOR_OUT}|cache" )
     make_line "p" "Selftest"                ; MENU_ENTRIES+=( "ITEM|p|${PLAIN_OUT}|${COLOR_OUT}|selftest" )
 
-    MENU_ENTRIES+=( "HEADER|=== START APPLICATIONS =====================================" )
+    MENU_ENTRIES+=( "HEADER|$(menu_header "START APPLICATIONS")" )
     make_line "h" "Houdini"                    ; MENU_ENTRIES+=( "ITEM|h|${PLAIN_OUT}|${COLOR_OUT}|houdini" )
     make_line "n" "Nuke"                       ; MENU_ENTRIES+=( "ITEM|n|${PLAIN_OUT}|${COLOR_OUT}|nuke" )
     make_line "e" "SynthEyes"                  ; MENU_ENTRIES+=( "ITEM|e|${PLAIN_OUT}|${COLOR_OUT}|syntheyes" )
@@ -495,7 +525,7 @@ function build_menu() {
     make_line "b" "Blender"                    ; MENU_ENTRIES+=( "ITEM|b|${PLAIN_OUT}|${COLOR_OUT}|blender" )
     make_line "d" "Davinci"                    ; MENU_ENTRIES+=( "ITEM|d|${PLAIN_OUT}|${COLOR_OUT}|davinci" )
 
-    MENU_ENTRIES+=( "HEADER|============================================================" )
+    MENU_ENTRIES+=( "HEADER|$(menu_header "")" )
     make_line "?" "Help" ""
     MENU_ENTRIES+=( "ITEM|?|${PLAIN_OUT}|  ${CYAN}?${NC}) ${BOLD}Help${NC}|help" )
     make_line "q" "Exit" ""
@@ -732,7 +762,7 @@ function deadline_power() {
 
 function confirm_danger() {
     tput cnorm
-    printf "\n${YELLOW}${BOLD}ATTENTION:${NC} "
+    printf "\n${YELLOW}${BOLD}${FARM_G_WARN} ATTENTION:${NC} "
     printf "You are attempting to: ${RED}$1${NC}\n"
     farm_prompt_rule
     read -n 1 -r -p \
@@ -827,6 +857,9 @@ function run_action() {
         install_deadline)
             confirm_danger "INSTALL DEADLINE ON FARM" && \
             $SCRIPTS/tools/install_app.sh deadline ;;
+        license_houdini)
+            set_terminal_title "Farm: Houdini License"
+            $SCRIPTS/tools/license_houdini.sh ;;
         cache)
             confirm_danger "DELETE ${FARM_LOCAL_NAME} CACHE" && \
             sudo $SCRIPTS/tools/delcache.sh ;;

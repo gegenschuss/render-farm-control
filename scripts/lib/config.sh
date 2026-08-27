@@ -131,14 +131,55 @@ farm_init_node_inventory
 
 # --- TERMINAL OUTPUT HELPERS ---
 # Keep script output consistent across all farm tools.
+# Box-drawing glyphs when the locale is UTF-8, ASCII otherwise; a soft
+# 256-color palette when the terminal supports it (mac + linux), the
+# classic 8-color codes as fallback.
+FARM_UI_UTF8=0
+case "${LC_ALL:-${LC_CTYPE:-${LANG:-}}}" in
+    *[Uu][Tt][Ff]*) FARM_UI_UTF8=1 ;;
+esac
+
+FARM_UI_256=0
+if [ "$(tput colors 2>/dev/null || echo 8)" -ge 256 ]; then
+    FARM_UI_256=1
+fi
+
+if [ "$FARM_UI_UTF8" -eq 1 ]; then
+    FARM_G_RULE='─'
+    FARM_G_PROMPT='╌'
+    FARM_G_SECTION='▸'
+    FARM_G_OK='✔'
+    FARM_G_WARN='⚠'
+    FARM_G_ERR='✖'
+else
+    FARM_G_RULE='-'
+    FARM_G_PROMPT='-'
+    FARM_G_SECTION='>'
+    FARM_G_OK='[OK]'
+    FARM_G_WARN='[!]'
+    FARM_G_ERR='[X]'
+fi
+
 FARM_C_RESET='\033[0m'
-FARM_C_TITLE='\033[1;36m'
-FARM_C_SECTION='\033[1;34m'
-FARM_C_RULE='\033[1;34m'
-FARM_C_OK='\033[1;32m'
-FARM_C_WARN='\033[1;33m'
-FARM_C_ERR='\033[1;31m'
-FARM_C_NODE='\033[1;36m'
+if [ "$FARM_UI_256" -eq 1 ]; then
+    FARM_C_TITLE='\033[1;38;5;81m'
+    FARM_C_SECTION='\033[38;5;75m'
+    FARM_C_RULE='\033[38;5;240m'
+    FARM_C_OK='\033[38;5;114m'
+    FARM_C_WARN='\033[38;5;214m'
+    FARM_C_ERR='\033[1;38;5;203m'
+    FARM_C_NODE='\033[38;5;81m'
+    FARM_C_DIM='\033[38;5;244m'
+else
+    FARM_C_TITLE='\033[1;36m'
+    FARM_C_SECTION='\033[1;34m'
+    FARM_C_RULE='\033[0;37m'
+    FARM_C_OK='\033[1;32m'
+    FARM_C_WARN='\033[1;33m'
+    FARM_C_ERR='\033[1;31m'
+    FARM_C_NODE='\033[1;36m'
+    FARM_C_DIM='\033[0;37m'
+fi
 FARM_UI_WIDTH=60
 FARM_VERSION="${FARM_VERSION:-2.1}"
 
@@ -151,76 +192,59 @@ farm_disable_colors() {
     FARM_C_WARN=''
     FARM_C_ERR=''
     FARM_C_NODE=''
+    FARM_C_DIM=''
 }
 
 farm_apply_random_header_theme() {
-    local title_colors=(
-        '\033[1;36m' # cyan
-        '\033[1;35m' # magenta
-        '\033[1;33m' # yellow
-        '\033[1;32m' # green
-    )
-    local section_colors=(
-        '\033[1;34m'
-        '\033[1;36m'
-        '\033[1;35m'
-        '\033[1;33m'
-    )
-    local rule_colors=(
-        '\033[1;34m'
-        '\033[1;36m'
-        '\033[1;35m'
-        '\033[1;33m'
-        '\033[1;32m'
-    )
-
-    local title_idx=$(( RANDOM % ${#title_colors[@]} ))
-    local section_idx=$(( RANDOM % ${#section_colors[@]} ))
-    local rule_idx=$(( RANDOM % ${#rule_colors[@]} ))
-
-    FARM_C_TITLE="${title_colors[$title_idx]}"
-    FARM_C_SECTION="${section_colors[$section_idx]}"
-    FARM_C_RULE="${rule_colors[$rule_idx]}"
-
-    # Ensure the rule color is always different from the title color.
-    if [[ "$FARM_C_RULE" == "$FARM_C_TITLE" ]]; then
-        rule_idx=$(( (rule_idx + 1) % ${#rule_colors[@]} ))
-        FARM_C_RULE="${rule_colors[$rule_idx]}"
+    # One random accent per run; rules stay neutral so the accent carries
+    # the identity (title bold, section regular) instead of clashing colors.
+    if [ "$FARM_UI_256" -eq 1 ]; then
+        local accents=(81 114 176 215 117 222 210)
+        local a="${accents[$RANDOM % ${#accents[@]}]}"
+        FARM_C_TITLE="\033[1;38;5;${a}m"
+        FARM_C_SECTION="\033[38;5;${a}m"
+        FARM_C_RULE='\033[38;5;240m'
+    else
+        local accents=('36' '35' '33' '32')
+        local a="${accents[$RANDOM % ${#accents[@]}]}"
+        FARM_C_TITLE="\033[1;${a}m"
+        FARM_C_SECTION="\033[0;${a}m"
+        FARM_C_RULE='\033[0;37m'
     fi
 }
 
 farm_apply_random_header_theme
 
 farm_print_rule() {
-    local width="${1:-$FARM_UI_WIDTH}"
-    printf "${FARM_C_RULE}%0.s=${FARM_C_RESET}" $(seq 1 "$width")
-    echo ""
+    local width="${1:-$FARM_UI_WIDTH}" line
+    printf -v line "%${width}s" ""
+    echo -e "${FARM_C_RULE}${line// /$FARM_G_RULE}${FARM_C_RESET}"
 }
 
 farm_print_title() {
     local TEXT="$1"
     farm_print_rule
-    echo -e "${FARM_C_TITLE}    ${TEXT}${FARM_C_RESET}"
+    echo -e "${FARM_C_TITLE}  ${TEXT}${FARM_C_RESET}"
     farm_print_rule
     echo ""
 }
 
 farm_print_section() {
     local TEXT="$1"
-    echo -e "${FARM_C_SECTION}    --- ${TEXT} ---${FARM_C_RESET}"
+    echo -e "${FARM_C_SECTION}${FARM_G_SECTION} ${TEXT}${FARM_C_RESET}"
     echo ""
 }
 
 farm_print_ok() {
-    echo -e "${FARM_C_OK}$*${FARM_C_RESET}"
+    echo -e "${FARM_C_OK}${FARM_G_OK} $*${FARM_C_RESET}"
 }
 
 farm_print_warn() {
-    echo -e "${FARM_C_WARN}$*${FARM_C_RESET}"
+    echo -e "${FARM_C_WARN}${FARM_G_WARN} $*${FARM_C_RESET}"
 }
 
 farm_print_error() {
-    echo -e "${FARM_C_ERR}$*${FARM_C_RESET}"
+    echo -e "${FARM_C_ERR}${FARM_G_ERR} $*${FARM_C_RESET}"
 }
 
 farm_require_cmd() {
@@ -275,11 +299,11 @@ farm_die_unknown_option() {
 }
 
 farm_prompt_rule() {
-    local width="${1:-60}"
-    local line
-    line=$(printf "%*s" "$width" "" | tr " " "-")
+    local width="${1:-60}" line
+    # Pattern substitution instead of tr: tr can't emit multibyte glyphs.
+    printf -v line "%${width}s" ""
     echo ""
-    echo -e "${FARM_C_WARN}${line}${FARM_C_RESET}"
+    echo -e "${FARM_C_DIM}${line// /$FARM_G_PROMPT}${FARM_C_RESET}"
     echo ""
 }
 
