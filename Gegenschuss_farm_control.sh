@@ -154,8 +154,8 @@ function print_sel_right() {  # $1=lcolored $2=spaces $3=rplain
 # red for exit.
 function key_color() {
     case "$1" in
-        r|R|s|S|c) printf '%s' "$YELLOW" ;;
-        q)         printf '%s' "$RED" ;;
+        r|R|s|S|c) printf '%s' "${BOLD}${YELLOW}" ;;
+        q)         printf '%s' "${BOLD}${RED}" ;;
         *)         printf '%s' "$KEY_C" ;;
     esac
 }
@@ -512,10 +512,10 @@ function build_menu() {
     else
         make_line "9" "Toggle AutoWake Timer" "${FARM_G_DOT_OFF} off" "$DIM"
     fi
-    MENU_ENTRIES+=( "HEADER|AUTOWAKE" )
+    MENU_ENTRIES+=( "HEADER|autowake" )
     MENU_ENTRIES+=( "ITEM|9|${PLAIN_OUT}|${COLOR_OUT}|autowake_toggle" )
 
-    MENU_ENTRIES+=( "HEADER|FARM SCRIPTS" )
+    MENU_ENTRIES+=( "HEADER|farm scripts" )
     make_line "x" "Status"        ; MENU_ENTRIES+=( "ITEM|x|${PLAIN_OUT}|${COLOR_OUT}|status" )
     make_line "w" "Wake"          ; MENU_ENTRIES+=( "ITEM|w|${PLAIN_OUT}|${COLOR_OUT}|wake" )
     add_pair "v" "NVTop"     "nvtop"                    "V" "+Workstation" "nvtop_local"
@@ -525,16 +525,16 @@ function build_menu() {
     add_pair "s" "Shutdown"  "shutdown"                 "S" "+Workstation" "shutdown_local"
     add_pair "j" "Submit"    "deadline_shutdown_submit" "J" "+Workstation" "deadline_shutdown_submit_local"
 
-    MENU_ENTRIES+=( "HEADER|FARM INSTALL" )
+    MENU_ENTRIES+=( "HEADER|farm install" )
     make_line "1" "Houdini"    ; MENU_ENTRIES+=( "ITEM|1|${PLAIN_OUT}|${COLOR_OUT}|install_houdini" )
     make_line "2" "Deadline"   ; MENU_ENTRIES+=( "ITEM|2|${PLAIN_OUT}|${COLOR_OUT}|install_deadline" )
     make_line "3" "Houdini License" ; MENU_ENTRIES+=( "ITEM|3|${PLAIN_OUT}|${COLOR_OUT}|license_houdini" )
 
-    MENU_ENTRIES+=( "HEADER|WORKSTATION SCRIPTS" )
+    MENU_ENTRIES+=( "HEADER|workstation scripts" )
     make_line "c" "Cache"                 ; MENU_ENTRIES+=( "ITEM|c|${PLAIN_OUT}|${COLOR_OUT}|cache" )
     make_line "p" "Selftest"                ; MENU_ENTRIES+=( "ITEM|p|${PLAIN_OUT}|${COLOR_OUT}|selftest" )
 
-    MENU_ENTRIES+=( "HEADER|START APPLICATIONS" )
+    MENU_ENTRIES+=( "HEADER|start applications" )
     make_line "h" "Houdini"                    ; MENU_ENTRIES+=( "ITEM|h|${PLAIN_OUT}|${COLOR_OUT}|houdini" )
     make_line "n" "Nuke"                       ; MENU_ENTRIES+=( "ITEM|n|${PLAIN_OUT}|${COLOR_OUT}|nuke" )
     make_line "e" "SynthEyes"                  ; MENU_ENTRIES+=( "ITEM|e|${PLAIN_OUT}|${COLOR_OUT}|syntheyes" )

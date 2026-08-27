@@ -86,8 +86,10 @@ declare -A NODE_OS
 for NODE in "${NODES[@]}"; do
     # Probe over ssh (the same channel the update runs on) rather than a
     # bare-name ping - see install_app.sh for why ping can disagree.
+    farm_spin_start "checking $NODE"
     farm_get_node_os_status "$NODE" "ssh"
     NODE_OS[$NODE]=$?
+    farm_spin_stop
     case ${NODE_OS[$NODE]} in
         0)
             echo "$(farm_node_tag "$NODE") offline - skipped"

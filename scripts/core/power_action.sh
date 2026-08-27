@@ -122,7 +122,6 @@ prompt_inline_choice_with_cancel() {
     FARM_PROMPT_ANSWER="$answer"
 }
 
-CHECK_SPINNER='|/-\'
 CHECK_SPINNER_IDX=0
 CHECK_TOTAL=0
 CHECK_DONE=0
@@ -142,10 +141,10 @@ start_check_progress() {
 show_check_progress() {
     local current_node="$1"
     local spin_char
-    spin_char="${CHECK_SPINNER:$CHECK_SPINNER_IDX:1}"
-    printf "\r  ${FARM_C_WARN}Checking nodes${FARM_C_RESET} %s [%d/%d]  %-14s\033[K" \
+    spin_char="${FARM_SPIN_FRAMES[$CHECK_SPINNER_IDX]}"
+    printf "\r  ${FARM_C_SECTION}%s${FARM_C_RESET} ${FARM_C_WARN}Checking nodes${FARM_C_RESET} [%d/%d]  %-14s\033[K" \
         "$spin_char" "$CHECK_DONE" "$CHECK_TOTAL" "$current_node"
-    CHECK_SPINNER_IDX=$(((CHECK_SPINNER_IDX + 1) % 4))
+    CHECK_SPINNER_IDX=$(((CHECK_SPINNER_IDX + 1) % ${#FARM_SPIN_FRAMES[@]}))
 }
 
 complete_check_progress_step() {
@@ -608,10 +607,10 @@ EOF
     done
 
     # ── poll loop ─────────────────────────────────────────────────────────────
-    local _done_count=0 _sidx=0 _sc='|/-\' _sc_char
+    local _done_count=0 _sidx=0 _sc_char
     while [ "$_done_count" -lt "$total_nodes" ]; do
         _done_count=0
-        _sc_char="${_sc:$_sidx:1}"; _sidx=$(( (_sidx + 1) % 4 ))
+        _sc_char="${FARM_SPIN_FRAMES[_sidx]}"; _sidx=$(( (_sidx + 1) % ${#FARM_SPIN_FRAMES[@]} ))
         for i in "${!TABLE_NODES[@]}"; do
             if [ "${_done[$i]}" -eq 1 ]; then
                 (( _done_count++ )); continue
@@ -975,10 +974,10 @@ EOF
     done
 
     # ── poll loop: update table as checks complete ────────────────────────────
-    local _done_count=0 _sidx=0 _sc='|/-\' _sc_char
+    local _done_count=0 _sidx=0 _sc_char
     while [ "$_done_count" -lt "$total_nodes" ]; do
         _done_count=0
-        _sc_char="${_sc:$_sidx:1}"; _sidx=$(( (_sidx + 1) % 4 ))
+        _sc_char="${FARM_SPIN_FRAMES[_sidx]}"; _sidx=$(( (_sidx + 1) % ${#FARM_SPIN_FRAMES[@]} ))
         for i in "${!TABLE_NODES[@]}"; do
             if [ "${_done[$i]}" -eq 1 ]; then
                 (( _done_count++ )); continue

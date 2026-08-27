@@ -115,24 +115,30 @@ declare -A NODE_OS
 for NODE in "${NODES[@]}"; do
     # Probe over ssh (the same channel the license update runs on) rather
     # than a bare-name ping - see install_app.sh for why ping can disagree.
+    farm_spin_start "checking $NODE"
     farm_get_node_os_status "$NODE" "ssh"
     NODE_OS[$NODE]=$?
     case ${NODE_OS[$NODE]} in
         0)
+            farm_spin_stop
             echo "$(farm_node_tag "$NODE") offline - skipped"
             ;;
         1)
+            farm_spin_stop
             echo "$(farm_node_tag "$NODE") on Windows - skipped"
             ;;
         2)
             VER=$(license_versions "$NODE")
+            farm_spin_stop
             echo "$(farm_node_tag "$NODE") on Linux - licenses: ${VER:-none found} - will check"
             ;;
     esac
 done
 
 if [[ "$LICENSE_LOCAL" =~ ^[Yy]$ ]]; then
+    farm_spin_start "checking $FARM_LOCAL_NAME"
     VER=$(license_versions "")
+    farm_spin_stop
     echo "$(farm_node_tag "$FARM_LOCAL_NAME") local workstation - licenses: ${VER:-none found} - will check"
 else
     echo "$(farm_node_tag "$FARM_LOCAL_NAME") local workstation - skipped"

@@ -204,15 +204,17 @@ for node in "${NODES[@]}"; do
     # than the ssh HostName (Tailscale/DNS vs LAN, or a stale /etc/hosts entry),
     # so a node could ping-up while ssh is down (or vice versa) and get wrongly
     # included/skipped for the install.
+    farm_spin_start "checking $node"
     farm_get_node_os_status "$node" "ssh"
     NODE_OS[$node]=$?
     case ${NODE_OS[$node]} in
-        0) print_state_line "$node" "" "offline" ;;
-        1) print_state_line "$node" "" "windows" ;;
+        0) farm_spin_stop; print_state_line "$node" "" "offline" ;;
+        1) farm_spin_stop; print_state_line "$node" "" "windows" ;;
         2)
             raw=$(query_installed_version "$node")
             ver=$(farm_extract_version "$raw")
             state=$(farm_install_classify "$ver" "$TARGET_VERSION")
+            farm_spin_stop
             print_state_line "$node" "$ver" "$state"
             CAND_NAME+=("$node"); CAND_LOCAL+=("0")
             CAND_VER+=("$ver"); CAND_STATE+=("$state")

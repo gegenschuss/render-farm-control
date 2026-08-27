@@ -137,8 +137,8 @@ render_header() {
 # red for exit.
 key_color() {
     case "$1" in
-        x|u) printf '%s' "$YELLOW" ;;
-        q)   printf '%s' "$RED" ;;
+        x|u) printf '%s' "${BOLD}${YELLOW}" ;;
+        q)   printf '%s' "${BOLD}${RED}" ;;
         *)   printf '%s' "$KEY_C" ;;
     esac
 }
@@ -164,25 +164,25 @@ build_menu() {
     MENU_ENTRIES=()
     SELECTABLE=()
 
-    MENU_ENTRIES+=( "HEADER|STATUS" )
+    MENU_ENTRIES+=( "HEADER|status" )
     make_line "s" "Ping"     "Ping remote nodes"
     MENU_ENTRIES+=( "ITEM|s|${PLAIN_OUT}|${COLOR_OUT}|status" )
     make_line "f" "Login"    "SSH to workstation farm menu"
     MENU_ENTRIES+=( "ITEM|f|${PLAIN_OUT}|${COLOR_OUT}|farm" )
-    MENU_ENTRIES+=( "HEADER|START" )
+    MENU_ENTRIES+=( "HEADER|start" )
     make_line "w" "Start"    "Wake + mount + connect"
     MENU_ENTRIES+=( "ITEM|w|${PLAIN_OUT}|${COLOR_OUT}|wake" )
-    MENU_ENTRIES+=( "HEADER|SHARES" )
+    MENU_ENTRIES+=( "HEADER|shares" )
     make_line "m" "Mount"     "Mount shares (Tailscale)"
     MENU_ENTRIES+=( "ITEM|m|${PLAIN_OUT}|${COLOR_OUT}|mount" )
     make_line "l" "Mount LAN" "Mount shares via local network"
     MENU_ENTRIES+=( "ITEM|l|${PLAIN_OUT}|${COLOR_OUT}|mount_local" )
     make_line "u" "Unmount"   "Unmount all remote shares"
     MENU_ENTRIES+=( "ITEM|u|${PLAIN_OUT}|${COLOR_OUT}|unmount" )
-    MENU_ENTRIES+=( "HEADER|MAINTENANCE" )
+    MENU_ENTRIES+=( "HEADER|maintenance" )
     make_line "c" "Cache"    "Purge local caches"
     MENU_ENTRIES+=( "ITEM|c|${PLAIN_OUT}|${COLOR_OUT}|delcache" )
-    MENU_ENTRIES+=( "HEADER|SHUTDOWN" )
+    MENU_ENTRIES+=( "HEADER|shutdown" )
     make_line "x" "Shutdown" "Shutdown remote linux workstation & nodes"
     MENU_ENTRIES+=( "ITEM|x|${PLAIN_OUT}|${COLOR_OUT}|shutdown_remote" )
     MENU_ENTRIES+=( "HEADER|" )

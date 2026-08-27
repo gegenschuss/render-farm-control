@@ -241,7 +241,9 @@ farm_print_rule() {
 
 farm_print_title() {
     # Rounded box around the title (ASCII "+--+" on non-UTF-8 locales).
-    local TEXT="$1" width="${2:-$FARM_UI_WIDTH}"
+    # Titles display lowercase regardless of how call sites shout.
+    local TEXT width="${2:-$FARM_UI_WIDTH}"
+    TEXT=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
     local inner=$(( width - 2 )) line pad spaces
     printf -v line "%${inner}s" ""
     line="${line// /$FARM_G_RULE}"
@@ -255,9 +257,53 @@ farm_print_title() {
 }
 
 farm_print_section() {
-    local TEXT="$1"
+    local TEXT
+    TEXT=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
     echo -e "${FARM_C_SECTION}${FARM_G_SECTION} ${TEXT}${FARM_C_RESET}"
     echo ""
+}
+
+# --- SPINNER ---
+# Braille spinner (ASCII fallback) for blocking checks, farm_spin_start
+# "label" ... farm_spin_stop. Only animates on a tty; on non-tty output
+# the label is printed once so logs stay readable.
+FARM_SPIN_PID=""
+if [ "$FARM_UI_UTF8" -eq 1 ]; then
+    FARM_SPIN_FRAMES=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+else
+    FARM_SPIN_FRAMES=('|' '/' '-' '\')
+fi
+
+farm_spin_start() {
+    local label="$1"
+    farm_spin_stop
+    if [ ! -t 1 ]; then
+        echo "  $label"
+        return 0
+    fi
+    tput civis 2>/dev/null
+    (
+        trap 'exit 0' TERM
+        local i=0 n=${#FARM_SPIN_FRAMES[@]}
+        while :; do
+            printf '\r\033[K  %b %s' \
+                "${FARM_C_SECTION}${FARM_SPIN_FRAMES[i % n]}${FARM_C_RESET}" \
+                "$label"
+            i=$(( i + 1 ))
+            sleep 0.08
+        done
+    ) &
+    FARM_SPIN_PID=$!
+}
+
+# Stops the spinner and clears its line; follow with your result output.
+farm_spin_stop() {
+    [ -n "$FARM_SPIN_PID" ] || return 0
+    kill "$FARM_SPIN_PID" 2>/dev/null
+    wait "$FARM_SPIN_PID" 2>/dev/null
+    FARM_SPIN_PID=""
+    [ -t 1 ] && printf '\r\033[K' && tput cnorm 2>/dev/null
+    return 0
 }
 
 farm_print_ok() {

@@ -489,11 +489,10 @@ _draw_table "Checking... [0/$total_nodes]"
 
 _done_count=0
 _sidx=0
-_sc='|/-\'
 _sc_char=''
 while [ "$_done_count" -lt "$total_nodes" ]; do
     _done_count=0
-    _sc_char="${_sc:$_sidx:1}"; _sidx=$(( (_sidx + 1) % 4 ))
+    _sc_char="${FARM_SPIN_FRAMES[_sidx]}"; _sidx=$(( (_sidx + 1) % ${#FARM_SPIN_FRAMES[@]} ))
     for i in "${!TABLE_NODES[@]}"; do
         if [ "${_done[$i]}" -eq 1 ]; then
             (( _done_count++ )); continue

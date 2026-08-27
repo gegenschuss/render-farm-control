@@ -20,22 +20,27 @@ fi
 ./header.sh
 echo ""
 
-SCRIPT_DIR="$(pwd)"
 
-W="${FARM_UI_WIDTH:-72}"
-line() { printf "%-${W}s\n" "$1"; }
-sec() { printf "${FARM_C_WARN}%-${W}s${FARM_C_RESET}\n" "$1"; }
-cmd() { printf "  ${FARM_C_OK}%-32s${FARM_C_RESET} %s\n" "$1" "$2"; }
-sub() { printf "    ${FARM_C_WARN}%-12s${FARM_C_RESET} ${FARM_C_SECTION}%s${FARM_C_RESET}\n" "$1" "$2"; }
-dlabel() { printf "  ${FARM_C_TITLE}%s${FARM_C_RESET}\n" "$1"; }
-dcmd() { printf "    ${FARM_C_OK}%s${FARM_C_RESET}\n" "$1"; }
-dnote() { printf "    ${FARM_C_SECTION}%s${FARM_C_RESET}\n" "$1"; }
-tip() { printf "  ${FARM_C_OK}- ${FARM_C_RESET}%s\n" "$1"; }
+W="${FARM_UI_WIDTH:-60}"
 
-farm_print_rule "$W"
-printf "${FARM_C_TITLE} Farm Help Index v${FARM_VERSION}${FARM_C_RESET}\n"
-farm_print_rule "$W"
-echo ""
+# Section header in the same style as the menus: dim rule, accent label.
+sec() {
+    local label fill line=""
+    label=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
+    fill=$(( W - ${#label} - 7 ))
+    (( fill < 0 )) && fill=0
+    printf -v line "%${fill}s" ""
+    printf "  ${FARM_C_DIM}${FARM_G_RULE}${FARM_G_RULE}${FARM_C_RESET} ${FARM_C_TITLE}%s${FARM_C_RESET} ${FARM_C_DIM}%s${FARM_C_RESET}\n" \
+        "$label" "${line// /$FARM_G_RULE}"
+}
+cmd() { printf "   ${FARM_C_SECTION}%-22s${FARM_C_RESET} %s\n" "$1" "$2"; }
+sub() { printf "     ${FARM_C_DIM}%-9s %s${FARM_C_RESET}\n" "$1" "$2"; }
+dlabel() { printf "   ${FARM_C_SECTION}%s${FARM_C_RESET}\n" "$1"; }
+dcmd() { printf "     %s\n" "$1"; }
+dnote() { printf "     ${FARM_C_DIM}%s${FARM_C_RESET}\n" "$1"; }
+tip() { printf "   ${FARM_C_SECTION}${FARM_G_SEP}${FARM_C_RESET} %s\n" "$1"; }
+
+farm_print_title "Farm Help v${FARM_VERSION}"
 
 sec "CORE"
 cmd "farm.sh" "Interactive launcher"
@@ -80,42 +85,40 @@ tip "Use --dry-run before reboot/shutdown/update/wake."
 
 echo ""
 sec "WAKE / SHUTDOWN AUTOMATION"
+dnote "(paths relative to the repo root)"
 dlabel "Pre-job wake:"
-dcmd "${SCRIPT_DIR}/wake.sh \\"
-dcmd "  --silent --prejob-wait=45"
+dcmd "scripts/core/wake.sh --silent --prejob-wait=45"
 dnote "# Log:  /tmp/farm_wake_silent.log"
 dnote "# Live: tail -f /tmp/farm_wake_silent.log"
 dlabel "Pre-job wake strict:"
-dcmd "${SCRIPT_DIR}/wake.sh \\"
-dcmd "  --silent-strict --prejob-wait=60"
+dcmd "scripts/core/wake.sh --silent-strict --prejob-wait=60"
 dlabel "Override log path:"
-dcmd "FARM_PREJOB_LOG_FILE=/tmp/custom.log ${SCRIPT_DIR}/wake.sh --silent"
+dcmd "FARM_PREJOB_LOG_FILE=/tmp/custom.log \\"
+dcmd "  scripts/core/wake.sh --silent"
 dlabel "Python Pre Job Script:"
-dcmd "${SCRIPT_DIR}/deadline/prejob_wake.py"
+dcmd "deadline/prejob_wake.py"
 dnote "# Uses wake.sh --silent by default"
-dnote "# Optional env: FARM_WAKE_PREJOB_WAIT=45 FARM_WAKE_PREJOB_STRICT=1"
+dnote "# Env: FARM_WAKE_PREJOB_WAIT=45 FARM_WAKE_PREJOB_STRICT=1"
 dlabel "AutoWake systemd timer (user-level):"
-sub "toggle:" "${SCRIPT_DIR}/Gegenschuss_farm_control.sh (option 9)"
+sub "toggle:" "Gegenschuss_farm_control.sh (option 9)"
 dlabel "Enable (manual):"
-dcmd "  ${SCRIPT_DIR}/autowake.sh install"
-dcmd "  ${SCRIPT_DIR}/autowake.sh enable"
-dcmd "  ${SCRIPT_DIR}/autowake.sh run-now"
+dcmd "  scripts/deadline/autowake.sh install"
+dcmd "  scripts/deadline/autowake.sh enable"
+dcmd "  scripts/deadline/autowake.sh run-now"
 dlabel "Disable (manual):"
-dcmd "  ${SCRIPT_DIR}/autowake.sh disable"
-dcmd "  ${SCRIPT_DIR}/autowake.sh uninstall"
+dcmd "  scripts/deadline/autowake.sh disable"
+dcmd "  scripts/deadline/autowake.sh uninstall"
 dlabel "Unit file locations:"
-dcmd "  ${HOME}/.config/systemd/user/farm-autowake.service"
-dcmd "  ${HOME}/.config/systemd/user/farm-autowake.timer"
+dcmd "  ~/.config/systemd/user/farm-autowake.service"
+dcmd "  ~/.config/systemd/user/farm-autowake.timer"
 sub "status:" "systemctl --user status farm-autowake.timer"
 dlabel "Batch finalizer:"
-dcmd "${SCRIPT_DIR}/finalize.sh \\"
-dcmd "  --grace-seconds=30"
-dcmd "${SCRIPT_DIR}/finalize.sh \\"
-dcmd "  --no-shutdown"
+dcmd "scripts/deadline/finalize.sh --grace-seconds=30"
+dcmd "scripts/deadline/finalize.sh --no-shutdown"
 dlabel "Submit command job:"
-dcmd "${SCRIPT_DIR}/submit.sh \\"
-dcmd "  --script ${SCRIPT_DIR}/shutdown.sh -- --deadline-postjob"
+dcmd "scripts/deadline/submit.sh \\"
+dcmd "  --script scripts/core/shutdown.sh -- --deadline-postjob"
 dlabel "Post-job shutdown:"
-dcmd "${SCRIPT_DIR}/shutdown.sh --deadline-postjob"
+dcmd "scripts/core/shutdown.sh --deadline-postjob"
 
 echo ""
