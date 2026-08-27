@@ -83,6 +83,7 @@ echo ""
 farm_print_section "Checking node status"
 echo ""
 declare -A NODE_OS
+N_UPDATE=0 N_WIN=0 N_OFF=0
 for NODE in "${NODES[@]}"; do
     # Probe over ssh (the same channel the update runs on) rather than a
     # bare-name ping - see install_app.sh for why ping can disagree.
@@ -93,10 +94,12 @@ for NODE in "${NODES[@]}"; do
     case ${NODE_OS[$NODE]} in
         0)
             echo "$(farm_node_tag "$NODE") offline - skipped"
+            (( N_OFF++ ))
             ;;
         1)
             echo "$(farm_node_tag "$NODE") on Windows - skipped"
             print_windows_tasks "$NODE"
+            (( N_WIN++ ))
             ;;
         2)
             if farm_is_dual_boot_node "$NODE"; then
@@ -104,16 +107,20 @@ for NODE in "${NODES[@]}"; do
             else
                 echo "$(farm_node_tag "$NODE") online - will update"
             fi
+            (( N_UPDATE++ ))
             ;;
     esac
 done
 
 if [[ "$UPDATE_LOCAL" =~ ^[Yy]$ ]]; then
     echo "$(farm_node_tag "$FARM_LOCAL_NAME") local workstation - will update"
+    (( N_UPDATE++ ))
 else
     echo "$(farm_node_tag "$FARM_LOCAL_NAME") local workstation - skipped (use --local / menu U to include)"
 fi
 
+echo ""
+farm_print_summary "$N_UPDATE to update ${FARM_G_SEP} $N_WIN on windows ${FARM_G_SEP} $N_OFF offline"
 echo ""
 if [ "$AUTO_YES" -eq 1 ]; then
     echo "Auto-yes enabled: starting updates."

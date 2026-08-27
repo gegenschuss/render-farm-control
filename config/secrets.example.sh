@@ -57,6 +57,12 @@ FARM_WORKSTATION_MAC="AA:BB:CC:DD:EE:FF"
 FARM_INSTALL_DIR_DEADLINE="/mnt/studio/install/deadline"
 FARM_INSTALL_DIR_HOUDINI="/mnt/studio/install/houdini"
 
+# --- UI Accent (optional) ---
+# Pin one 256-color accent for menus/headers instead of a random pick
+# per run (e.g. 81=sky, 114=green, 176=orchid, 215=peach, 222=cream).
+# Leave empty for a random accent every time.
+FARM_UI_ACCENT=""
+
 # --- SideFX Account (license_houdini.sh) ---
 # Used for non-interactive "sesictrl login --email --password" on every
 # machine (the only non-interactive login sesictrl supports; its oauth2

@@ -107,9 +107,7 @@ for node in "${NODES[@]}"; do
 done
 
 echo ""
-farm_prompt_heading "Summary"
-echo "Checks: $TOTAL   Failures: $FAIL   Warnings: $WARN"
-echo "Nodes online: $ONLINE/${#NODES[@]}"
+farm_print_summary "$TOTAL checks ${FARM_G_SEP} $FAIL failures ${FARM_G_SEP} $WARN warnings ${FARM_G_SEP} nodes $ONLINE/${#NODES[@]}"
 echo ""
 
 if [ "$FAIL" -gt 0 ]; then

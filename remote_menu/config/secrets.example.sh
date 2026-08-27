@@ -12,6 +12,12 @@
 #   from version control via .gitignore.
 # ============================================
 
+# --- UI Accent (optional) ---
+# Pin one 256-color accent for the menu instead of a random pick per
+# run (e.g. 81=sky, 114=green, 176=orchid, 215=peach, 222=cream).
+# Leave empty for a random accent every time.
+FARM_UI_ACCENT=""
+
 # --- Deadline Server ---
 DEADLINE_USER="deadline"
 DEADLINE_HOST="100.x.x.x"

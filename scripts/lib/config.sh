@@ -160,6 +160,8 @@ if [ "$FARM_UI_UTF8" -eq 1 ]; then
     FARM_G_DOT='●'
     FARM_G_DOT_OFF='○'
     FARM_G_SEP='·'
+    FARM_G_METER_ON='▇'
+    FARM_G_METER_OFF='░'
 else
     FARM_G_RULE='-'
     FARM_G_PROMPT='-'
@@ -176,6 +178,8 @@ else
     FARM_G_DOT='*'
     FARM_G_DOT_OFF='.'
     FARM_G_SEP='|'
+    FARM_G_METER_ON='#'
+    FARM_G_METER_OFF='.'
 fi
 
 FARM_C_RESET='\033[0m'
@@ -216,15 +220,21 @@ farm_disable_colors() {
 farm_apply_random_header_theme() {
     # One random accent per run; rules stay neutral so the accent carries
     # the identity (title bold, section regular) instead of clashing colors.
+    # Set FARM_UI_ACCENT (a 256-color number) in config/secrets.sh to pin
+    # one accent instead. The chosen number is exported as
+    # FARM_UI_ACCENT_N for reuse (menu theme, tmux session styling).
     if [ "$FARM_UI_256" -eq 1 ]; then
         local accents=(81 114 176 215 117 222 210)
         local a="${accents[$RANDOM % ${#accents[@]}]}"
+        [[ "${FARM_UI_ACCENT:-}" =~ ^[0-9]+$ ]] && a="$FARM_UI_ACCENT"
+        FARM_UI_ACCENT_N="$a"
         FARM_C_TITLE="\033[1;38;5;${a}m"
         FARM_C_SECTION="\033[38;5;${a}m"
         FARM_C_RULE='\033[38;5;240m'
     else
         local accents=('36' '35' '33' '32')
         local a="${accents[$RANDOM % ${#accents[@]}]}"
+        FARM_UI_ACCENT_N=""
         FARM_C_TITLE="\033[1;${a}m"
         FARM_C_SECTION="\033[0;${a}m"
         FARM_C_RULE='\033[0;37m'
@@ -256,6 +266,55 @@ farm_print_title() {
     echo ""
 }
 
+# 5-slot usage meter colored by load: "▇▇░░░  34%". Pass a 0-100 value.
+farm_meter() {
+    local v="${1:-0}" filled i bar="" color
+    [[ "$v" =~ ^[0-9]+$ ]] || v=0
+    [ "$v" -gt 100 ] && v=100
+    filled=$(( (v + 10) / 20 ))
+    (( filled > 5 )) && filled=5
+    for (( i=0; i<5; i++ )); do
+        if (( i < filled )); then bar+="$FARM_G_METER_ON"; else bar+="$FARM_G_METER_OFF"; fi
+    done
+    if [ "$v" -ge 85 ]; then color="$FARM_C_ERR"
+    elif [ "$v" -ge 60 ]; then color="$FARM_C_WARN"
+    else color="$FARM_C_OK"; fi
+    printf '%b%s%b %3d%%' "$color" "$bar" "$FARM_C_RESET" "$v"
+}
+
+# Red-bordered box for destructive-action confirms. Text prints as given
+# (danger is allowed to shout).
+farm_print_danger_box() {
+    local TEXT="$1" width="${2:-$FARM_UI_WIDTH}"
+    local inner=$(( width - 2 )) line pad spaces
+    printf -v line "%${inner}s" ""
+    line="${line// /$FARM_G_RULE}"
+    pad=$(( inner - ${#TEXT} - 4 - ${#FARM_G_WARN} ))
+    (( pad < 0 )) && pad=0
+    printf -v spaces "%${pad}s" ""
+    echo -e "${FARM_C_ERR}${FARM_G_TL}${line}${FARM_G_TR}${FARM_C_RESET}"
+    echo -e "${FARM_C_ERR}${FARM_G_VBAR}${FARM_C_RESET} ${FARM_C_WARN}${FARM_G_WARN}${FARM_C_RESET}  ${FARM_C_ERR}${TEXT}${FARM_C_RESET}${spaces} ${FARM_C_ERR}${FARM_G_VBAR}${FARM_C_RESET}"
+    echo -e "${FARM_C_ERR}${FARM_G_BL}${line}${FARM_G_BR}${FARM_C_RESET}"
+}
+
+# One-line boxed end-of-run summary, e.g.:
+#   farm_print_summary "3 updated · 1 skipped · 1 offline"
+# Pass plain text only (colors would break the width math).
+farm_print_summary() {
+    local TEXT
+    TEXT=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
+    local width="${2:-$FARM_UI_WIDTH}"
+    local inner=$(( width - 2 )) line pad spaces
+    printf -v line "%${inner}s" ""
+    line="${line// /$FARM_G_RULE}"
+    pad=$(( inner - ${#TEXT} - 4 - ${#FARM_G_OK} ))
+    (( pad < 0 )) && pad=0
+    printf -v spaces "%${pad}s" ""
+    echo -e "${FARM_C_RULE}${FARM_G_TL}${line}${FARM_G_TR}${FARM_C_RESET}"
+    echo -e "${FARM_C_RULE}${FARM_G_VBAR}${FARM_C_RESET} ${FARM_C_OK}${FARM_G_OK}${FARM_C_RESET}  ${TEXT}${spaces} ${FARM_C_RULE}${FARM_G_VBAR}${FARM_C_RESET}"
+    echo -e "${FARM_C_RULE}${FARM_G_BL}${line}${FARM_G_BR}${FARM_C_RESET}"
+}
+
 farm_print_section() {
     local TEXT
     TEXT=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
@@ -284,11 +343,15 @@ farm_spin_start() {
     tput civis 2>/dev/null
     (
         trap 'exit 0' TERM
-        local i=0 n=${#FARM_SPIN_FRAMES[@]}
+        local i=0 n=${#FARM_SPIN_FRAMES[@]} secs elapsed
         while :; do
-            printf '\r\033[K  %b %s' \
+            # Dim elapsed-seconds suffix once a check takes >= 1s.
+            secs=$(( i * 8 / 100 ))
+            elapsed=""
+            [ "$secs" -ge 1 ] && elapsed=" ${secs}s"
+            printf '\r\033[K  %b %s%b%s%b' \
                 "${FARM_C_SECTION}${FARM_SPIN_FRAMES[i % n]}${FARM_C_RESET}" \
-                "$label"
+                "$label" "$FARM_C_DIM" "$elapsed" "$FARM_C_RESET"
             i=$(( i + 1 ))
             sleep 0.08
         done
@@ -703,17 +766,23 @@ check_linux_node_health() {
 farm_tmux_apply_config() {
     local SESSION="$1"
 
+    # Session accent (matches the terminal UI accent); the sync state
+    # still overrides the ACTIVE border with red/green below.
+    local accent="cyan"
+    if [ "$FARM_UI_256" -eq 1 ] && [ -n "${FARM_UI_ACCENT_N:-}" ]; then
+        accent="colour${FARM_UI_ACCENT_N}"
+    fi
+
     # --- PANE BORDERS ---
     tmux set-option -g pane-border-status top
+    tmux set-option -g pane-border-style "fg=colour238"
     tmux set-option -g pane-border-format \
-        " #[bold]#{pane_title} "
+        " #[fg=${accent},bold]#{pane_title} "
 
     # --- STATUS BAR RIGHT ---
     tmux set-option -g status-right-length 80
     tmux set-option -g status-right \
-        "#[fg=white,bold] Toggle: Ctrl+b,y \
-| Move: Ctrl+b,Arrows \
-| Resize: Ctrl+b,H/J/K/L "
+        "#[fg=colour250] toggle ^b,y | move ^b,arrows | resize ^b,HJKL "
 
     # --- MOUSE SUPPORT ---
     # Enables click-to-focus and drag-to-resize panes (helpful in Terminal.app).

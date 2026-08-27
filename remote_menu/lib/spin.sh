@@ -7,8 +7,10 @@ SPIN_FRAMES=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
 SPIN_PID=""
 SPIN_COLOR=$'\033[36m'
 SPIN_RESET=$'\033[0m'
+SPIN_DIM=$'\033[2m'
 if [ "$(tput colors 2>/dev/null || echo 8)" -ge 256 ]; then
   SPIN_COLOR=$'\033[38;5;81m'
+  SPIN_DIM=$'\033[38;5;244m'
 fi
 
 spin_start() {
@@ -22,9 +24,16 @@ spin_start() {
   (
     trap 'exit 0' TERM
     i=0
+    secs=0
+    elapsed=""
     while :; do
-      printf '\r\033[K  %s%s%s %s' \
-        "$SPIN_COLOR" "${SPIN_FRAMES[$(( i % ${#SPIN_FRAMES[@]} ))]}" "$SPIN_RESET" "$label"
+      # Dim elapsed-seconds suffix once a wait takes >= 1s.
+      secs=$(( i * 8 / 100 ))
+      elapsed=""
+      [ "$secs" -ge 1 ] && elapsed=" ${secs}s"
+      printf '\r\033[K  %s%s%s %s%s%s%s' \
+        "$SPIN_COLOR" "${SPIN_FRAMES[$(( i % ${#SPIN_FRAMES[@]} ))]}" "$SPIN_RESET" \
+        "$label" "$SPIN_DIM" "$elapsed" "$SPIN_RESET"
       i=$(( i + 1 ))
       sleep 0.08
     done

@@ -53,6 +53,11 @@ YELLOW='\033[1;33m'
 if [ "$(tput colors 2>/dev/null || echo 8)" -ge 256 ]; then
     ACCENTS=(81 114 176 215 117 222)
     ACCENT_N="${ACCENTS[$(( RANDOM % ${#ACCENTS[@]} ))]}"
+    # Pinned accent from config/secrets.sh wins over the random pick.
+    case "${FARM_UI_ACCENT:-}" in
+        *[!0-9]*|'') ;;
+        *) ACCENT_N="$FARM_UI_ACCENT" ;;
+    esac
     CYAN="\033[38;5;${ACCENT_N}m"
     KEY_C="\033[1;38;5;${ACCENT_N}m"
     # Selection bar: accent background, near-black bold text.
@@ -106,9 +111,18 @@ run_child() {
 
 confirm_danger() {
     local action_label="$1"
+    # Red-bordered warning box (bash 3.2: rule built with a while loop).
+    local width=$LINE_WIDTH inner line="" pad="" i=0
+    inner=$(( width - 2 ))
+    while [ "$i" -lt "$inner" ]; do line="${line}─"; i=$((i+1)); done
+    i=$(( inner - ${#action_label} - 5 ))
+    [ "$i" -lt 0 ] && i=0
+    printf -v pad "%${i}s" ""
     tput cnorm
-    printf "\n${YELLOW}${BOLD}⚠ ATTENTION:${NC} You are about to ${RED}%s${NC}\n" "$action_label"
-    read -n 1 -r -p "$(printf "${RED}Are you sure? [y/N]: ${NC}")" confirm
+    printf "\n${RED}╭%s╮${NC}\n" "$line"
+    printf "${RED}│${NC} ${YELLOW}⚠${NC}  ${RED}%s${NC}%s ${RED}│${NC}\n" "$action_label" "$pad"
+    printf "${RED}╰%s╯${NC}\n\n" "$line"
+    read -n 1 -r -p "$(printf "  ${RED}are you sure? [y/N]: ${NC}")" confirm
     printf "\n"
     tput civis
     [[ "$confirm" =~ ^[Yy]$ ]]
@@ -167,6 +181,18 @@ build_menu() {
     MENU_ENTRIES=()
     SELECTABLE=()
 
+    # Mounted-share indicator for the SHARES header (macOS: /Volumes).
+    local shares_label="shares" _s _mounted=0 _total=0
+    for _s in "${DEADLINE_SHARE:-}" "${NAS_STUDIO_SHARE:-}" "${NAS_BUERO_SHARE:-}" \
+              "${WORKSTATION_HOUDINI_SHARE:-}" "${WORKSTATION_NUKE_SHARE:-}"; do
+        [ -n "$_s" ] || continue
+        _total=$(( _total + 1 ))
+        mount 2>/dev/null | grep -q "/Volumes/$_s" && _mounted=$(( _mounted + 1 ))
+    done
+    if [ "$_total" -gt 0 ]; then
+        shares_label="shares ${SEP} ${_mounted}/${_total} mounted"
+    fi
+
     MENU_ENTRIES+=( "HEADER|status" )
     make_line "s" "Ping"     "Ping remote nodes"
     MENU_ENTRIES+=( "ITEM|s|${PLAIN_OUT}|${COLOR_OUT}|status" )
@@ -175,7 +201,7 @@ build_menu() {
     MENU_ENTRIES+=( "HEADER|start" )
     make_line "w" "Start"    "Wake + mount + connect"
     MENU_ENTRIES+=( "ITEM|w|${PLAIN_OUT}|${COLOR_OUT}|wake" )
-    MENU_ENTRIES+=( "HEADER|shares" )
+    MENU_ENTRIES+=( "HEADER|${shares_label}" )
     make_line "m" "Mount"     "Mount shares (Tailscale)"
     MENU_ENTRIES+=( "ITEM|m|${PLAIN_OUT}|${COLOR_OUT}|mount" )
     make_line "l" "Mount LAN" "Mount shares via local network"
@@ -366,6 +392,8 @@ execute_selected() {
         printf "\n"
         read -n 1 -s -r -p "Press any key to return to the menu..."
     fi
+    # Rebuild so live hints (mounted-share count) reflect the action.
+    build_menu
     render_menu
     IN_MENU=1
     tput cnorm

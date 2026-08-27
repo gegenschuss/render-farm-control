@@ -222,6 +222,19 @@ for node in "${NODES[@]}"; do
     esac
 done
 
+_n_upd=0 _n_ok=0 _n_skip=0
+for i in "${!CAND_NAME[@]}"; do
+    case "${CAND_STATE[$i]}" in
+        uptodate) (( _n_ok++ )) ;;
+        *)        (( _n_upd++ )) ;;
+    esac
+done
+for node in "${NODES[@]}"; do
+    case ${NODE_OS[$node]} in 0|1) (( _n_skip++ )) ;; esac
+done
+echo ""
+farm_print_summary "$_n_upd need install/update ${FARM_G_SEP} $_n_ok up to date ${FARM_G_SEP} $_n_skip unavailable"
+
 echo ""
 printf "  %-12s  ${FARM_C_NODE}%s${FARM_C_RESET}\n" "Installing:" "$FILENAME_ONLY"
 printf "  %-12s  ${FARM_C_NODE}%s${FARM_C_RESET}\n" "Target ver:" "${TARGET_VERSION:-unknown}"

@@ -112,6 +112,7 @@ echo ""
 farm_print_section "Checking node status"
 echo ""
 declare -A NODE_OS
+N_CHECK=0 N_SKIP=0
 for NODE in "${NODES[@]}"; do
     # Probe over ssh (the same channel the license update runs on) rather
     # than a bare-name ping - see install_app.sh for why ping can disagree.
@@ -122,15 +123,18 @@ for NODE in "${NODES[@]}"; do
         0)
             farm_spin_stop
             echo "$(farm_node_tag "$NODE") offline - skipped"
+            (( N_SKIP++ ))
             ;;
         1)
             farm_spin_stop
             echo "$(farm_node_tag "$NODE") on Windows - skipped"
+            (( N_SKIP++ ))
             ;;
         2)
             VER=$(license_versions "$NODE")
             farm_spin_stop
             echo "$(farm_node_tag "$NODE") on Linux - licenses: ${VER:-none found} - will check"
+            (( N_CHECK++ ))
             ;;
     esac
 done
@@ -140,10 +144,14 @@ if [[ "$LICENSE_LOCAL" =~ ^[Yy]$ ]]; then
     VER=$(license_versions "")
     farm_spin_stop
     echo "$(farm_node_tag "$FARM_LOCAL_NAME") local workstation - licenses: ${VER:-none found} - will check"
+    (( N_CHECK++ ))
 else
     echo "$(farm_node_tag "$FARM_LOCAL_NAME") local workstation - skipped"
+    (( N_SKIP++ ))
 fi
 
+echo ""
+farm_print_summary "$N_CHECK to check ${FARM_G_SEP} $N_SKIP skipped"
 echo ""
 if [ "$AUTO_YES" -eq 1 ]; then
     echo "Auto-yes enabled: starting license update."

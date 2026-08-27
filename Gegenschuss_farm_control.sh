@@ -43,6 +43,8 @@ function apply_random_menu_theme() {
     if [ "${FARM_UI_256:-0}" -eq 1 ]; then
         local accents=(81 114 176 215 117 222)
         local a="${accents[$RANDOM % ${#accents[@]}]}"
+        # Pinned accent from config/secrets.sh wins over the random pick.
+        [[ "${FARM_UI_ACCENT:-}" =~ ^[0-9]+$ ]] && a="$FARM_UI_ACCENT"
         CYAN="\033[38;5;${a}m"
         KEY_C="\033[1;38;5;${a}m"
         # Selection bar: accent background, near-black bold text.
@@ -778,11 +780,11 @@ function deadline_power() {
 
 function confirm_danger() {
     tput cnorm
-    printf "\n${YELLOW}${BOLD}${FARM_G_WARN} ATTENTION:${NC} "
-    printf "You are attempting to: ${RED}$1${NC}\n"
-    farm_prompt_rule
+    echo ""
+    farm_print_danger_box "$1"
+    echo ""
     read -n 1 -r -p \
-        "$(printf "${RED}Are you sure? [y/N] (q=cancel): ${NC}")" \
+        "$(printf "  ${RED}are you sure? [y/N] (q=cancel): ${NC}")" \
         confirm
     tput civis
     if [[ "$confirm" == "q" || "$confirm" == "Q" ]]; then

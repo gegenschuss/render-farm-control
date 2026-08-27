@@ -36,15 +36,29 @@ C_OK='\033[1;32m'
 C_ERR='\033[1;31m'
 C_RESET='\033[0m'
 C_BOLD='\033[1m'
+meter() {
+    local v="${1:-0}" filled i bar="" color
+    [[ "$v" =~ ^[0-9]+$ ]] || v=0
+    [ "$v" -gt 100 ] && v=100
+    filled=$(( (v + 10) / 20 ))
+    [ "$filled" -gt 5 ] && filled=5
+    for (( i=0; i<5; i++ )); do
+        if [ "$i" -lt "$filled" ]; then bar+="▇"; else bar+="░"; fi
+    done
+    if [ "$v" -ge 85 ]; then color="$C_ERR"
+    elif [ "$v" -ge 60 ]; then color="$C_WARN"
+    else color="$C_OK"; fi
+    printf '%b%s%b %3d%%' "$color" "$bar" "$C_RESET" "$v"
+}
 printf "\n"
 printf "  ${C_WARN}Uptime:${C_RESET}    %s\n" "$(uptime -p)"
 printf "  ${C_WARN}Load:${C_RESET}      %s\n" \
     "$(awk '{print $1, $2, $3}' /proc/loadavg)"
 printf "\n"
-free -h | awk '/Mem:/ {
-    printf "  \033[1;33mMemory:\033[0m    Used %s / %s   Free %s\n",
-    $3, $2, $4
-}'
+MEM_PCT=$(free | awk '/Mem:/ {printf "%d", $3*100/$2}')
+printf "  ${C_WARN}Memory:${C_RESET}    %s   %s\n" \
+    "$(meter "$MEM_PCT")" \
+    "$(free -h | awk '/Mem:/ {print $3" / "$2}')"
 printf "\n"
 printf "  ${C_WARN}Disk:${C_RESET}\n"
 df -h | awk '/^\// && $6 !~ /^\/mnt/ {
@@ -58,12 +72,18 @@ if command -v nvidia-smi &>/dev/null; then
         --format=csv,noheader 2>/dev/null \
         | while IFS=',' read -r idx name temp util mem_used mem_total; do
         [[ "$idx" =~ ^[0-9]+$ ]] || continue
+        UTIL_N="${util//[!0-9]/}"
+        MU_N="${mem_used//[!0-9]/}"
+        MT_N="${mem_total//[!0-9]/}"
+        VRAM_PCT=0
+        [ -n "$MU_N" ] && [ -n "$MT_N" ] && [ "$MT_N" -gt 0 ] && \
+            VRAM_PCT=$(( MU_N * 100 / MT_N ))
         printf "    ${C_BOLD}GPU%s${C_RESET}  %s\n" \
-            "${idx// /}" "${name// /}"
-        printf "          Temp:%s   Util:%s\n" \
-            "$temp" "$util"
-        printf "          VRAM:%s /%s\n" \
-            "$mem_used" "$mem_total"
+            "${idx// /}" "${name## }"
+        printf "          util %s   %s\n" \
+            "$(meter "$UTIL_N")" "${temp// /}°C"
+        printf "          vram %s   %s /%s\n" \
+            "$(meter "$VRAM_PCT")" "${mem_used# }" "$mem_total"
     done
 else
     printf "    nvidia-smi not found\n"
@@ -348,10 +368,10 @@ check_local_status() {
         printf "  ${FARM_C_WARN}Load:${FARM_C_RESET}      %s\n" \
             "$(awk '{print $1, $2, $3}' /proc/loadavg)"
         printf "\n"
-        free -h | awk '/Mem:/ {
-            printf "  \033[1;33mMemory:\033[0m    Used %s / %s   Free %s\n",
-            $3, $2, $4
-        }'
+        _MEM_PCT=$(free | awk '/Mem:/ {printf "%d", $3*100/$2}')
+        printf "  ${FARM_C_WARN}Memory:${FARM_C_RESET}    %s   %s\n" \
+            "$(farm_meter "$_MEM_PCT")" \
+            "$(free -h | awk '/Mem:/ {print $3" / "$2}')"
         printf "\n"
         printf "  ${FARM_C_WARN}Disk:${FARM_C_RESET}\n"
         df -h | awk '/^\// && $6 !~ /^\/mnt/ {
@@ -365,12 +385,18 @@ check_local_status() {
                 --format=csv,noheader 2>/dev/null \
                 | while IFS=',' read -r idx name temp util mem_used mem_total; do
                 [[ "$idx" =~ ^[0-9]+$ ]] || continue
+                _UTIL_N="${util//[!0-9]/}"
+                _MU_N="${mem_used//[!0-9]/}"
+                _MT_N="${mem_total//[!0-9]/}"
+                _VRAM_PCT=0
+                [ -n "$_MU_N" ] && [ -n "$_MT_N" ] && [ "$_MT_N" -gt 0 ] && \
+                    _VRAM_PCT=$(( _MU_N * 100 / _MT_N ))
                 printf "    \033[1mGPU%s\033[0m  %s\n" \
-                    "${idx// /}" "${name// /}"
-                printf "          Temp:%s   Util:%s\n" \
-                    "$temp" "$util"
-                printf "          VRAM:%s /%s\n" \
-                    "$mem_used" "$mem_total"
+                    "${idx// /}" "${name## }"
+                printf "          util %s   %s\n" \
+                    "$(farm_meter "$_UTIL_N")" "${temp// /}°C"
+                printf "          vram %s   %s /%s\n" \
+                    "$(farm_meter "$_VRAM_PCT")" "${mem_used# }" "$mem_total"
             done
         else
             printf "    nvidia-smi not found\n"
