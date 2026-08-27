@@ -13,10 +13,8 @@ if [ "$(tput colors 2>/dev/null || echo 8)" -ge 256 ]; then
         "229 223 222 216 215"   # cream -> amber
         "159 117 111 105 99"    # ice -> periwinkle
     )
-    DIM='\033[38;5;242m'
 else
     THEME_GRADIENTS=('0;31' '0;32' '0;33' '0;34' '0;35' '1;31' '1;32' '1;33' '1;34' '1;35' '1;36')
-    DIM='\033[2m'
 fi
 BOLD='\033[1m'
 NC='\033[0m'
@@ -42,8 +40,6 @@ function print_logo() {
         fi
         echo -e "${color}${BOLD}${LOGO_LINES[$i]}${NC}"
     done
-    echo ""
-    echo -e "${DIM}                              render farm control${NC}"
     echo ""
 }
 

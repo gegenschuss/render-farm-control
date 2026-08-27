@@ -161,7 +161,7 @@ function key_color() {
 }
 
 function make_line() {
-    local shortcut="$1" label="$2" hint="$3" hintc="${4:-$DIM}"
+    local shortcut="$1" label="${2,,}" hint="${3,,}" hintc="${4:-$DIM}"
     local prefix="   ${shortcut}  "
     local plain="${prefix}${label}"
     local pad=$(( LINE_WIDTH - ${#plain} - ${#hint} ))
@@ -181,7 +181,7 @@ declare -A PAIR_PARTNER   # entry_idx -> partner entry_idx
 # Fields 6-12 of the ITEM format carry pair metadata.
 # Format: ITEM|shortcut|full_plain|full_colored|action|side|lplain|lcolored|spaces|rplain|rcolored|partner_s
 function add_pair() {
-    local s1="$1" label1="$2" action1="$3" s2="$4" label2="$5" action2="$6"
+    local s1="$1" label1="${2,,}" action1="$3" s2="$4" label2="${5,,}" action2="$6"
 
     local lplain="   ${s1}  ${label1}"
     local rplain="${s2}  ${label2}"

@@ -94,10 +94,13 @@ fi
 farm_print_section "Node reachability"
 ONLINE=0
 for node in "${NODES[@]}"; do
+    farm_spin_start "pinging $node"
     if ping -c 1 -W 1 "$node" &>/dev/null; then
+        farm_spin_stop
         echo "  [OK]   $node reachable"
         ((ONLINE++))
     else
+        farm_spin_stop
         echo "  [WARN] $node unreachable"
         ((WARN++))
     fi

@@ -22,6 +22,7 @@ if [ ! -f "$SCRIPT_DIR/../config/secrets.sh" ]; then
 fi
 source "$SCRIPT_DIR/../config/secrets.sh"
 source "$SCRIPT_DIR/../lib/logo.sh"
+[ -f "$SCRIPT_DIR/../lib/spin.sh" ] && source "$SCRIPT_DIR/../lib/spin.sh"
 
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
   C_RESET=$'\033[0m'
@@ -182,22 +183,29 @@ mount_share "$NAS_USER" "$NAS_HOST" "$NAS_BUERO_SHARE"
 
 # 4. Retry SSH into workstation every 10 seconds until successful
 section "CONNECT TO WORKSTATION"
-log "Waiting 50s for workstation to boot"
+spin_start "waiting 50s for workstation to boot"
 sleep 50
+spin_stop
 attempt=1
+spin_start "connecting to $WORKSTATION_SSH_HOST"
 until ssh -o ConnectTimeout=5 -o BatchMode=yes -o StrictHostKeyChecking=no "$WORKSTATION_SSH_HOST" exit 2>/dev/null; do
+  spin_stop
   warn "Attempt $attempt failed; retrying in 10 seconds"
   attempt=$((attempt + 1))
+  spin_start "retrying ssh to $WORKSTATION_SSH_HOST"
   sleep 10
 done
+spin_stop
 pass "$WORKSTATION_SSH_HOST is reachable"
 subline
-log "INFO" "Checking reachability: $WORKSTATION_HOST"
+spin_start "checking reachability: $WORKSTATION_HOST"
 if is_host_reachable "$WORKSTATION_HOST"; then
+  spin_stop
   pass "Host reachable: $WORKSTATION_HOST"
   mount_share "$WORKSTATION_USER" "$WORKSTATION_HOST" "$WORKSTATION_HOUDINI_SHARE"
   mount_share "$WORKSTATION_USER" "$WORKSTATION_HOST" "$WORKSTATION_NUKE_SHARE"
 else
+  spin_stop
   warn "Host not reachable: $WORKSTATION_HOST"
   warn "Skipping mounts: $WORKSTATION_HOUDINI_SHARE, $WORKSTATION_NUKE_SHARE"
 fi

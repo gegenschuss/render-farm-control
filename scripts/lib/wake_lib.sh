@@ -24,8 +24,10 @@ check_dualboot_status() {
     local NAME=$1
     local WIN_USER=$2
 
+    farm_spin_start "checking $NAME"
     detect_node_os "$NAME"
     local OS_STATUS=$?
+    farm_spin_stop
 
     case $OS_STATUS in
         0)
@@ -42,22 +44,25 @@ check_dualboot_status() {
                 echo "$(farm_node_tag "$NAME") on Windows - skipped by silent policy."
                 result_code=5
             else
-                echo "$(farm_node_tag "$NAME") is on Windows - checking for active users..."
+                echo "$(farm_node_tag "$NAME") is on Windows"
                 print_windows_tasks "$NAME"
 
                 local LOGGED_IN
+                farm_spin_start "checking active users on $NAME"
                 LOGGED_IN=$(farm_ssh_batch "${NAME}-win" \
                     'powershell -Command "(Get-WMIObject Win32_ComputerSystem).UserName"' \
                     2>/dev/null)
+                farm_spin_stop
                 if echo "$LOGGED_IN" | grep -qi "$WIN_USER"; then
                     farm_print_warn "$NAME: ARTIST ($WIN_USER) WORKING - skipped by default."
                     result_code=2
                 else
-                    echo "$(farm_node_tag "$NAME") checking for active Windows updates..."
                     local UPDATE_ACTIVE
+                    farm_spin_start "checking active Windows updates on $NAME"
                     UPDATE_ACTIVE=$(farm_ssh_batch "${NAME}-win" \
                         'powershell -Command "Get-Process -Name TiWorker,wuauclt,WUDFHost -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name"' \
                         2>/dev/null)
+                    farm_spin_stop
                     if echo "$UPDATE_ACTIVE" | grep -qi "TiWorker\|wuauclt\|WUDFHost"; then
                         farm_print_warn "$NAME: WINDOWS UPDATE ACTIVE - skipped by default."
                         result_code=2

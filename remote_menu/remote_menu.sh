@@ -144,7 +144,10 @@ key_color() {
 }
 
 make_line() {
-    local shortcut="$1" label="$2" hint="$3"
+    local shortcut="$1" label hint
+    # Menu text displays all-lowercase (tr, not ${var,,}: bash 3.2).
+    label=$(printf '%s' "$2" | tr '[:upper:]' '[:lower:]')
+    hint=$(printf '%s' "$3" | tr '[:upper:]' '[:lower:]')
     local prefix="   ${shortcut}  "
     local plain="${prefix}${label}"
     local pad=$(( LINE_WIDTH - ${#plain} - ${#hint} ))

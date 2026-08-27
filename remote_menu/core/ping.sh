@@ -25,6 +25,13 @@ NODES=("${PING_NODES[@]}")
 if [ -f "$SCRIPT_DIR/../lib/logo.sh" ]; then
   source "$SCRIPT_DIR/../lib/logo.sh"
 fi
+if [ -f "$SCRIPT_DIR/../lib/spin.sh" ]; then
+  source "$SCRIPT_DIR/../lib/spin.sh"
+fi
+if [ "${#SPIN_FRAMES[@]}" -eq 0 ]; then
+  SPIN_FRAMES=('|' '/' '-' '\')
+  SPIN_COLOR="" SPIN_RESET=""
+fi
 
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
   C_RESET=$'\033[0m'
@@ -92,7 +99,6 @@ log_status() {
 
 spinner_until_done() {
   local pids=("$@")
-  local chars='|/-\'
   local idx=0
   local all_done=0
 
@@ -106,9 +112,11 @@ spinner_until_done() {
     done
 
     if [ "$all_done" -eq 0 ]; then
-      printf '\r[%s] %bINFO%b Checking nodes in parallel... %c' "$(ts)" "$C_SUB" "$C_RESET" "${chars:$idx:1}"
-      idx=$(( (idx + 1) % 4 ))
-      sleep 0.12
+      printf '\r[%s] %bINFO%b Checking nodes in parallel... %s%s%s' \
+        "$(ts)" "$C_SUB" "$C_RESET" \
+        "$SPIN_COLOR" "${SPIN_FRAMES[$(( idx % ${#SPIN_FRAMES[@]} ))]}" "$SPIN_RESET"
+      idx=$(( idx + 1 ))
+      sleep 0.08
     fi
   done
 

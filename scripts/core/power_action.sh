@@ -189,7 +189,6 @@ run_commands_with_live_status() {
     local -a status_lines=()
     local rendered_once=0
     local can_redraw=0
-    local spinner_chars='|/-\'
     local spinner_idx=0
     local spin_char
     local any_failed=0
@@ -278,8 +277,8 @@ run_commands_with_live_status() {
     while [ "$done_count" -lt "$total" ]; do
         if [ -s "$_enter_flag" ]; then break; fi
         done_count=0
-        spin_char="${spinner_chars:$spinner_idx:1}"
-        spinner_idx=$(((spinner_idx + 1) % 4))
+        spin_char="${FARM_SPIN_FRAMES[$spinner_idx]}"
+        spinner_idx=$(((spinner_idx + 1) % ${#FARM_SPIN_FRAMES[@]}))
         for idx in "${!pids[@]}"; do
             if [ "${done_map[$idx]}" -eq 1 ]; then
                 done_count=$((done_count + 1))
@@ -615,8 +614,11 @@ EOF
             if [ "${_done[$i]}" -eq 1 ]; then
                 (( _done_count++ )); continue
             fi
+            # Append the spinner frame to interim status text so rows keep
+            # animating during the whole probe.
             if [ -s "${_stat[$i]}" ]; then
-                IFS= read -r TBL_STATUS[$i] < "${_stat[$i]}"
+                IFS= read -r _stxt < "${_stat[$i]}"
+                TBL_STATUS[$i]="$_stxt $_sc_char"
             else
                 TBL_STATUS[$i]="checking... $_sc_char"
             fi
@@ -982,8 +984,11 @@ EOF
             if [ "${_done[$i]}" -eq 1 ]; then
                 (( _done_count++ )); continue
             fi
+            # Append the spinner frame to interim status text so rows keep
+            # animating during the whole probe.
             if [ -s "${_stat[$i]}" ]; then
-                IFS= read -r TBL_STATUS[$i] < "${_stat[$i]}"
+                IFS= read -r _stxt < "${_stat[$i]}"
+                TBL_STATUS[$i]="$_stxt $_sc_char"
             else
                 TBL_STATUS[$i]="checking... $_sc_char"
             fi

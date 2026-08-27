@@ -497,8 +497,12 @@ while [ "$_done_count" -lt "$total_nodes" ]; do
         if [ "${_done[$i]}" -eq 1 ]; then
             (( _done_count++ )); continue
         fi
+        # Append the spinner frame to whatever interim status the check
+        # wrote ("detecting OS...", "checking tasks...") so rows animate
+        # for the whole probe, not only while the stat file is empty.
         if [ -s "${_stat[$i]}" ]; then
-            IFS= read -r TBL_STATUS[$i] < "${_stat[$i]}"
+            IFS= read -r _stxt < "${_stat[$i]}"
+            TBL_STATUS[$i]="$_stxt $_sc_char"
         else
             TBL_STATUS[$i]="checking... $_sc_char"
         fi

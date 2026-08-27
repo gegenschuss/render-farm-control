@@ -20,6 +20,7 @@ if [ ! -f "$SCRIPT_DIR/../config/secrets.sh" ]; then
 fi
 source "$SCRIPT_DIR/../config/secrets.sh"
 source "$SCRIPT_DIR/../lib/logo.sh"
+[ -f "$SCRIPT_DIR/../lib/spin.sh" ] && source "$SCRIPT_DIR/../lib/spin.sh"
 
 MODE="tailscale"
 if [[ "${1:-}" == "--local" || "${1:-}" == "-l" ]]; then
@@ -135,12 +136,14 @@ mount_share "$NAS_USER" "$NAS_HOST" "$NAS_STUDIO_SHARE"
 mount_share "$NAS_USER" "$NAS_HOST" "$NAS_BUERO_SHARE"
 
 section "WORKSTATION SHARES"
-log "INFO" "Checking reachability: $WORKSTATION_HOST"
+spin_start "checking reachability: $WORKSTATION_HOST"
 if is_host_reachable "$WORKSTATION_HOST"; then
+  spin_stop
   pass "Host reachable: $WORKSTATION_HOST"
   mount_share "$WORKSTATION_USER" "$WORKSTATION_HOST" "$WORKSTATION_HOUDINI_SHARE"
   mount_share "$WORKSTATION_USER" "$WORKSTATION_HOST" "$WORKSTATION_NUKE_SHARE"
 else
+  spin_stop
   warn "Host not reachable: $WORKSTATION_HOST"
   warn "Skipping mounts: $WORKSTATION_HOUDINI_SHARE, $WORKSTATION_NUKE_SHARE"
 fi

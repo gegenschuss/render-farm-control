@@ -622,9 +622,9 @@ farm_get_windows_tasks() {
 print_windows_tasks() {
     local NAME=$1
 
-    echo "$(farm_node_tag "$NAME") checking important Windows tasks (Premiere, Illustrator, Photoshop, After Effects, Reaper)..."
-
+    farm_spin_start "checking Windows tasks on $NAME (Premiere, Illustrator, Photoshop, AE, Reaper)"
     TASKS=$(farm_get_windows_tasks "$NAME")
+    farm_spin_stop
 
     if [ -z "$TASKS" ]; then
         echo "$(farm_node_tag "$NAME") no important Windows tasks running."

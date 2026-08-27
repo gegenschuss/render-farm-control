@@ -18,8 +18,6 @@ else
 fi
 BOLD='\033[1m'
 NC='\033[0m'
-LOGO_DIM='\033[38;5;242m'
-[ "$LOGO_256" -eq 1 ] || LOGO_DIM='\033[2m'
 
 LOGO_LINES=(
 '       _____                          __'
@@ -47,8 +45,6 @@ print_logo() {
     echo -e "${color}${BOLD}${LOGO_LINES[$i]}${NC}"
     i=$((i+1))
   done
-  echo ""
-  echo -e "${LOGO_DIM}                              remote control${NC}"
   echo ""
 }
 
