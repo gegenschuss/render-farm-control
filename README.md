@@ -34,7 +34,9 @@ prompts.
 **Make it yours.** Drop in your own ASCII logo and colour scheme by
 editing [`scripts/lib/header.sh`](scripts/lib/header.sh) -- the animated
 header on startup is just a shell function and takes any figlet-style
-art.
+art. The whole UI is styled around a single accent colour (truecolor
+gradient logo, spinners, meters), so re-tinting it is a one-variable
+change.
 
 <img src="docs/menu.png" width="320" alt="Farm Control menu">
 
@@ -51,6 +53,7 @@ service or don't run Deadline, this isn't for you.
 | Walk to each machine and power it on | `wake.sh` -- WoL + dual-boot reboot, all nodes at once |
 | RDP into Windows to check if someone's working | Auto-detects active artist sessions, skips busy machines |
 | SSH into each node to install software | `install_app.sh` -- deploys to all nodes simultaneously |
+| Hunt vendor sites for DCC updates | One-key local updaters for Blender, Nuke, Resolve, Mocha |
 | Forget to shut down after overnight renders | Post-job shutdown triggers automatically via Deadline |
 | Deadline Pulse fails silently | Shell scripts you can read, debug, and trust |
 | VPN appliance to reach the farm remotely | Tailscale -- wake the farm from your laptop anywhere |
@@ -77,9 +80,9 @@ We built this because:
   and fix when something breaks.
 
 - **Tailscale changed everything.** With Tailscale VPN, the farm is
-  reachable from anywhere. The macOS remote menu lets you wake the entire
-  farm, mount shares, and SSH into the workstation from a laptop on the
-  couch. No port forwarding, no VPN appliances.
+  reachable from anywhere. The remote menu (macOS or Linux) lets you wake
+  the entire farm, mount shares, and SSH into the workstation from a
+  laptop on the couch. No port forwarding, no VPN appliances.
 
 - **Simultaneous updates and installs.** Tmux sessions across all nodes
   let you run `apt upgrade` or deploy a new Houdini build on every machine
@@ -105,7 +108,7 @@ We built this because:
 **Supported platforms:**
 - Render nodes: Ubuntu 22.04 / 24.04, Rocky Linux 9 / 10
 - Control workstation: Linux or macOS
-- Remote client: macOS (Tailscale VPN)
+- Remote client: macOS or Linux (Tailscale VPN)
 
 ---
 
@@ -182,15 +185,19 @@ Every script supports `--help` for usage details and `--dry-run` where applicabl
 All user-specific values (node MACs, IPs, passwords, mount paths) live in
 secrets files that are excluded from version control.
 
-**Three secrets files to set up:**
+**Two secrets files to set up:**
 
 ```bash
-# Farm-wide config (nodes, paths, credentials)
+# Farm-wide config (nodes, paths, credentials, install shares)
 cp config/secrets.example.sh config/secrets.sh
 
-# macOS remote menu (Tailscale IPs, share names)
+# Remote menu (Tailscale IPs, share names)
 cp remote_menu/config/secrets.example.sh remote_menu/config/secrets.sh
 ```
+
+The farm-wide secrets also define the install shares the app
+updaters search (`FARM_INSTALL_DIR_HOUDINI`, `_DEADLINE`, `_NUKE`,
+`_BLENDER`, `_RESOLVE`, `_MOCHA`).
 
 ### Node Definitions
 
@@ -421,8 +428,13 @@ scripts/
         examples.txt                    Deadline Monitor command-line examples
 
     tools/                          Utilities and launchers
-        install_app.sh                  Deploy software to farm nodes
+        install_app.sh                  Deploy Houdini/Deadline to farm nodes
         license_houdini.sh              Update Houdini license on all machines
+        update_blender.sh               Update Blender on the workstation (auto-download)
+        update_nuke.sh                  Install a new Nuke version on the workstation
+        update_resolve.sh               Update DaVinci Resolve on the workstation
+        import_mocha.sh                 Import a Mocha Pro rpm on the workstation
+        delcache.sh                     Clean app cache directories (sudo)
         doctor.sh                       Dependency and connectivity checker
         selftest.sh                     Regression smoke test suite
         debug.sh                        Check Windows update activity on dual-boot
@@ -430,15 +442,21 @@ scripts/
         launch_nuke.sh                  Launch latest Nuke
         setup_new_node.sh               Provision a fresh machine as render node
 
-remote_menu/                        macOS remote menu (Tailscale VPN client)
-    remote_menu.sh                      Interactive launcher
+remote_menu/                        Remote menu, macOS + Linux (Tailscale VPN client)
+    remote_menu.sh                      Interactive launcher (arrow keys + shortcuts)
     core/
         wake.sh                         Wake nodes + mount shares + connect
         ping.sh                         Ping all nodes via Tailscale
+        mount.sh                        Mount SMB shares (Tailscale or --local LAN)
+        delcache.sh                     Clean local app caches on the client machine
         shutdown.sh                     Shutdown farm via SSH
         unmount.sh                      Unmount SMB shares + close Deadline Monitor
     lib/
         logo.sh                         Animated logo module
+        ui.sh                           Shared palette + platform helpers (macOS/Linux)
+        spin.sh                         Spinner module
+    mac/
+        Remote.app                      Double-clickable macOS wrapper (opens Terminal)
     config/
         secrets.sh                      Remote menu secrets (gitignored)
         secrets.example.sh              Remote menu secrets template
@@ -563,14 +581,20 @@ scripts/deadline/autowake.sh uninstall    # remove unit files
 scripts/deadline/autowake.sh status       # show state
 ```
 
-### macOS Remote Menu
+### Remote Menu (macOS / Linux)
 
-Tailscale-based remote control from a Mac laptop. Located in `remote_menu/`.
+Tailscale-based remote control from a laptop -- macOS or Linux.
+Located in `remote_menu/`. Shares mount via Finder/`osascript` on
+macOS and `gio`/gvfs on Linux; everything else is plain bash + SSH.
+On a Mac, `remote_menu/mac/Remote.app` is a double-clickable wrapper
+that opens the menu in Terminal.
 
 | Script | Action |
 |--------|--------|
 | `wake.sh` | Check Tailscale, wake nodes via relay host, mount SMB shares, SSH to workstation |
 | `ping.sh` | Ping all nodes via Tailscale IPs |
+| `mount.sh` | Mount the farm SMB shares -- Tailscale IPs by default, `--local` for LAN |
+| `delcache.sh` | Clean local app caches on the client (Nuke, Resolve, Mocha, SynthEyes, Adobe) |
 | `shutdown.sh` | SSH to workstation and trigger farm shutdown |
 | `unmount.sh` | Close Deadline Monitor and unmount all SMB shares |
 
@@ -582,6 +606,11 @@ Tailscale-based remote control from a Mac laptop. Located in `remote_menu/`.
 | `selftest.sh` | Syntax check + safe dry-runs + doctor (`--quick` for fast) |
 | `install_app.sh` | Deploy Houdini/Deadline to selected nodes via tmux (version-aware) |
 | `license_houdini.sh` | Update the Houdini license on all Linux machines via tmux (`sesictrl` login/redeem) |
+| `update_blender.sh` | Update Blender in `/opt/blender` on the workstation (auto-download, staged swap) |
+| `update_nuke.sh` | Install a new Nuke version to `/opt` on the workstation (parallel installs) |
+| `update_resolve.sh` | Update DaVinci Resolve on the workstation (auto-download, makeresolvedeb) |
+| `import_mocha.sh` | Import a Mocha Pro Linux rpm on the workstation (dnf/rpm or rpm-overlay) |
+| `delcache.sh` | Interactive cache cleanup (Nuke/Mocha/SynthEyes/Resolve/Houdini roots) |
 | `debug.sh` | Check Windows Update activity on dual-boot nodes |
 | `launch_houdini.sh` | Launch latest Houdini from `/opt` |
 | `launch_nuke.sh` | Launch latest Nuke |
@@ -625,7 +654,7 @@ nodes are detected over SSH and skipped automatically.
 ./scripts/tools/license_houdini.sh --local  # include workstation, no prompt
 ```
 
-Also available from the interactive menu (option `3`, FARM INSTALL section).
+Also available from the interactive menu (`L`, APP section).
 The pre-flight lists each reachable machine with the license version it
 currently has installed (e.g. `licenses: 22.0 - will check`); whether an
 upgrade is actually pending shows in each pane's redeem list. It then opens
@@ -655,6 +684,35 @@ builds, and login sessions don't persist between invocations). The
 workstation pane may additionally ask for your local sudo password once --
 nodes have passwordless sudo, the workstation does not. Offline and
 Windows-booted nodes are skipped automatically.
+
+#### Local app updaters (workstation-only DCCs)
+
+Nuke, Blender, DaVinci Resolve, and Mocha Pro run only on the artist
+workstation, not on the render nodes -- so their updaters install
+locally instead of fanning out over tmux. Each is one key-press in the
+menu's APP section (`N`/`B`/`D`/`M` -- `+Update`) and shares the same
+pattern: check the installed version, find the newest package (online
+where the vendor allows it, otherwise from `~/Downloads`), stage it on
+the install share, and install without touching a working copy. All
+support `--dry-run` and `-y`.
+
+- **`update_blender.sh`** -- looks up the newest stable release on
+  download.blender.org (sha256-verified) and swaps `/opt/blender` in a
+  staged install; falls back to the newest tarball on the share when
+  offline.
+- **`update_nuke.sh`** -- Foundry downloads need a browser login, so
+  the script picks up the `Nuke*-linux-x86_64.tgz` you downloaded,
+  archives it to the share, and installs to `/opt` alongside existing
+  versions (parallel installs, nothing removed).
+- **`update_resolve.sh`** -- auto-downloads the newest Resolve from
+  blackmagicdesign.com ("Download Only" path, no registration data
+  sent), then follows the makeresolvedeb workflow so the install stays
+  apt-managed. Studio by default; `FARM_RESOLVE_EDITION=free` for the
+  free version.
+- **`import_mocha.sh`** -- imports the Mocha Pro Linux `.rpm` (saved
+  by Mocha's updater or a manual download): native dnf/rpm on
+  Rocky/RHEL, or extracted and overlaid onto `/opt/BorisFX` on
+  Ubuntu/apt systems.
 
 ---
 
@@ -691,7 +749,7 @@ automatically.
 **Do I have to use Deadline?**
 Only for the render-submission side. Wake-on-LAN, shutdown, reboot,
 Auto-Wake (the 10-minute systemd timer), node provisioning, the
-macOS remote menu, and the quick-launch panel are all plain bash
+remote menu, and the quick-launch panel are all plain bash
 and systemd -- they work on any farm. Only `submit.sh`,
 `submit_shutdown.sh`, `finalize.sh`, and the pre-/post-job hooks
 assume Deadline 10. With a different render manager, hook its own
@@ -718,9 +776,10 @@ idempotent, so you can re-run it safely if something goes wrong
 partway through.
 
 **Can I work on the farm from home?**
-Yes, via [Tailscale](https://tailscale.com/). The macOS remote menu
-wakes nodes, mounts SMB shares, and SSH-es into the workstation
-from a laptop anywhere -- no port forwarding, no VPN appliance. If
+Yes, via [Tailscale](https://tailscale.com/). The remote menu (macOS
+or Linux) wakes nodes, mounts SMB shares, and SSH-es into the
+workstation from a laptop anywhere -- no port forwarding, no VPN
+appliance. If
 Tailscale is blocked on your network, you're stuck on local LAN.
 
 **Can I change the quick-launch panel?**
