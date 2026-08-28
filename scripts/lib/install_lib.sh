@@ -1,9 +1,9 @@
 #!/bin/bash
-#       _____                          __
-#      / ___/__ ___ ____ ___  ___ ____/ /  __ _____ ___
-#     / (_ / -_) _ `/ -_) _ \(_-</ __/ _ \/ // (_-<(_-<
-#     \___/\__/\_, /\__/_//_/___/\__/_//_/\_,_/___/___/
-#             /___/
+#  _____                         _
+# |   __|___ ___ ___ ___ ___ ___| |_ _ _ ___ ___
+# |  |  | -_| . | -_|   |_ -|  _|   | | |_ -|_ -|
+# |_____|___|_  |___|_|_|___|___|_|_|___|___|___|
+#           |___|
 #
 
 # --- VERSION HELPERS ---------------------------------------------------------
@@ -96,7 +96,7 @@ echo ""
 echo "  Step 5: Cleanup..."
 cd ~ && rm -rf "$install_dir"
 echo ""
-echo "--- VERIFICATION ---"
+echo "▸ verification"
 [ -d "$FARM_DEADLINE_PREFIX" ] \
     && echo -e "\e[32m[OK]\e[0m Installed" \
     || echo -e "\e[31m[FAIL]\e[0m Missing"
@@ -147,10 +147,10 @@ echo ""
 echo "  Step 5: Cleanup..."
 cd ~ && rm -rf "$install_dir"
 echo ""
-echo "--- VERIFICATION ---"
+echo "▸ verification"
 [ -d "$FARM_DEADLINE_PREFIX" ] \
     && echo -e "\e[32m[OK]\e[0m Installed" \
-    || echo -e "\e[34m[INFO]\e[0m GUI Mode: Launcher disabled."
+    || echo -e "\e[1m[INFO]\e[0m GUI Mode: Launcher disabled."
 echo ""
 echo -e "${FARM_C_RULE}────────────────────────────────────────────────────────────${FARM_C_RESET}"
 echo "  DONE! Press [RETURN] to close."

@@ -1,9 +1,9 @@
 #!/bin/bash
-#       _____                          __
-#      / ___/__ ___ ____ ___  ___ ____/ /  __ _____ ___
-#     / (_ / -_) _ `/ -_) _ \(_-</ __/ _ \/ // (_-<(_-<
-#     \___/\__/\_, /\__/_//_/___/\__/_//_/\_,_/___/___/
-#             /___/
+#  _____                         _
+# |   __|___ ___ ___ ___ ___ ___| |_ _ _ ___ ___
+# |  |  | -_| . | -_|   |_ -|  _|   | | |_ -|_ -|
+# |_____|___|_  |___|_|_|___|___|_|_|___|___|___|
+#           |___|
 #
 cd "$(dirname "$0")"
 source ../lib/config.sh
@@ -37,7 +37,7 @@ Deadline setup (Monitor):
      some render jobs fail.
 EOF
     echo ""
-    echo "Examples:"
+    echo "  Examples:"
     echo "  $script_path"
     echo "  $script_path --grace-seconds=120"
     echo "  $script_path --no-shutdown"
@@ -80,19 +80,19 @@ fi
 LOG_FILE="/tmp/finalize.log"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Deadline batch finalizer started."
-echo "Script path: $(pwd)/finalize.sh"
-echo "Grace seconds: $GRACE_SECONDS"
-echo "No-shutdown mode: $NO_SHUTDOWN"
-echo "Dry-run mode: $DRY_RUN"
+echo "  [$(date '+%Y-%m-%d %H:%M:%S')] Deadline batch finalizer started."
+echo "  Script path: $(pwd)/finalize.sh"
+echo "  Grace seconds: $GRACE_SECONDS"
+echo "  No-shutdown mode: $NO_SHUTDOWN"
+echo "  Dry-run mode: $DRY_RUN"
 echo ""
 
 if [ "$DRY_RUN" -eq 1 ]; then
-    echo "[dry-run] Would sleep ${GRACE_SECONDS}s."
+    echo "  [dry-run] Would sleep ${GRACE_SECONDS}s."
     if [ "$NO_SHUTDOWN" -eq 1 ]; then
-        echo "[dry-run] Would skip shutdown by flag."
+        echo "  [dry-run] Would skip shutdown by flag."
     else
-        echo "[dry-run] Would run: $(pwd)/shutdown.sh --deadline-postjob"
+        echo "  [dry-run] Would run: $(pwd)/shutdown.sh --deadline-postjob"
     fi
     echo ""
     farm_print_ok "Finalizer dry-run complete."
@@ -100,7 +100,7 @@ if [ "$DRY_RUN" -eq 1 ]; then
 fi
 
 if [ "$GRACE_SECONDS" -gt 0 ]; then
-    echo "Waiting ${GRACE_SECONDS}s grace period before post-job action..."
+    echo "  Waiting ${GRACE_SECONDS}s grace period before post-job action..."
     sleep "$GRACE_SECONDS"
 fi
 
@@ -109,9 +109,9 @@ if [ "$NO_SHUTDOWN" -eq 1 ]; then
     exit 0
 fi
 
-echo "Triggering post-job shutdown..."
+echo "  Triggering post-job shutdown..."
 "$(pwd)/shutdown.sh" --deadline-postjob
 EXIT_CODE=$?
 echo ""
-echo "Post-job shutdown exit code: $EXIT_CODE"
+echo "  Post-job shutdown exit code: $EXIT_CODE"
 exit "$EXIT_CODE"

@@ -1,9 +1,9 @@
 #!/bin/bash
-#       _____                          __
-#      / ___/__ ___ ____ ___  ___ ____/ /  __ _____ ___
-#     / (_ / -_) _ `/ -_) _ \(_-</ __/ _ \/ // (_-<(_-<
-#     \___/\__/\_, /\__/_//_/___/\__/_//_/\_,_/___/___/
-#             /___/
+#  _____                         _
+# |   __|___ ___ ___ ___ ___ ___| |_ _ _ ___ ___
+# |  |  | -_| . | -_|   |_ -|  _|   | | |_ -|_ -|
+# |_____|___|_  |___|_|_|___|___|_|_|___|___|___|
+#           |___|
 #
 cd "$(dirname "$0")"
 set -eE
@@ -40,17 +40,16 @@ fi
 if [[ -t 1 ]]; then
     clear
     "$FARM_SCRIPTS_DIR/lib/header.sh"
-    echo ""
 fi
 
 farm_print_title "FARM SELFTEST"
 
-echo "[1/4] Syntax checking all shell scripts..."
+echo "  [1/4] Syntax checking all shell scripts..."
 for f in "$FARM_SCRIPTS_DIR"/{lib,core,deadline,tools}/*.sh; do
     bash -n "$f" || exit 1
 done
 
-echo "[2/4] Checking merged entrypoints..."
+echo "  [2/4] Checking merged entrypoints..."
 if bash -c 'declare -A __farm_test_assoc' >/dev/null 2>&1; then
     "$FARM_SCRIPTS_DIR/core/node_session.sh" control --help >/dev/null || exit 1
     "$FARM_SCRIPTS_DIR/core/node_session.sh" nvtop --help >/dev/null || exit 1
@@ -60,33 +59,33 @@ if bash -c 'declare -A __farm_test_assoc' >/dev/null 2>&1; then
     "$FARM_SCRIPTS_DIR/core/power_action.sh" shutdown --help >/dev/null || exit 1
     "$FARM_SCRIPTS_DIR/core/power_action.sh" reboot --help >/dev/null || exit 1
 else
-    echo "  Skipping merged entrypoint tests: bash lacks associative arrays."
+    echo "  Skipping merged entrypoint tests: needs bash 4."
 fi
 
-echo "[3/4] Running safe dry-runs..."
+echo "  [3/4] Running safe dry-runs..."
 if bash -c 'declare -A __farm_test_assoc' >/dev/null 2>&1; then
     "$FARM_SCRIPTS_DIR/core/update.sh" --dry-run --no-local --yes >/dev/null
     "$FARM_SCRIPTS_DIR/core/shutdown.sh" --dry-run --no-local --yes --force >/dev/null
     "$FARM_SCRIPTS_DIR/core/reboot.sh" --dry-run --no-local --yes --force >/dev/null
 else
-    echo "  Skipping dry-runs: bash lacks associative arrays on this host."
+    echo "  Skipping dry-runs: needs bash 4."
 fi
 
-echo "[4/4] Checking launcher help..."
+echo "  [4/4] Checking launcher help..."
 "$FARM_SCRIPTS_DIR/lib/help.sh" --help >/dev/null || exit 1
 
 if [ "$DEEP" -eq 1 ]; then
-    echo "[deep] Running additional safe checks..."
+    echo "  [deep] Running additional safe checks..."
     if bash -c 'declare -A __farm_test_assoc' >/dev/null 2>&1; then
         "$FARM_SCRIPTS_DIR/core/wake.sh" --prejob --prejob-wait=3 --yes --dry-run >/dev/null || exit 1
         "$FARM_SCRIPTS_DIR/core/status.sh" --help >/dev/null || exit 1
     else
-        echo "  Skipping deep runtime checks: bash lacks associative arrays."
+        echo "  Skipping deep runtime checks: needs bash 4."
     fi
 fi
 
-echo "[doctor] Running farm doctor checks..."
+echo "  [doctor] Running farm doctor checks..."
 "$FARM_SCRIPTS_DIR/tools/doctor.sh" >/dev/null || exit 1
 
 echo ""
-echo "farm_selftest: OK"
+echo "  farm_selftest: OK"

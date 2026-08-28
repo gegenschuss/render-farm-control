@@ -1,11 +1,10 @@
 #!/bin/bash
-#       _____                          __
-#      / ___/__ ___ ____ ___  ___ ____/ /  __ _____ ___
-#     / (_ / -_) _ `/ -_) _ \(_-</ __/ _ \/ // (_-<(_-<
-#     \___/\__/\_, /\__/_//_/___/\__/_//_/\_,_/___/___/
-#             /___/
+#  _____                         _
+# |   __|___ ___ ___ ___ ___ ___| |_ _ _ ___ ___
+# |  |  | -_| . | -_|   |_ -|  _|   | | |_ -|_ -|
+# |_____|___|_  |___|_|_|___|___|_|_|___|___|___|
+#           |___|
 #
-export LC_ALL=en_US.UTF-8
 
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
     cat << 'EOF'
@@ -41,36 +40,22 @@ if [ -f "$SCRIPT_DIR/config/secrets.sh" ]; then
     source "$SCRIPT_DIR/config/secrets.sh"
 fi
 
-NC='\033[0m'
-BOLD='\033[1m'
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-CYAN='\033[0;36m'
-YELLOW='\033[1;33m'
+# Shared palette + platform helpers: black & white, one accent
+# (#87d7ff), red/green only for failed/good status.
+source "$SCRIPT_DIR/lib/ui.sh"
 
-# One soft accent per run drives the shortcut keys, section headers,
-# selection bar and footer; classic ANSI fallback. Bash 3.2 compatible.
-if [ "$(tput colors 2>/dev/null || echo 8)" -ge 256 ]; then
-    ACCENTS=(81 114 176 215 117 222)
-    ACCENT_N="${ACCENTS[$(( RANDOM % ${#ACCENTS[@]} ))]}"
-    # Pinned accent from config/secrets.sh wins over the random pick.
-    case "${FARM_UI_ACCENT:-}" in
-        *[!0-9]*|'') ;;
-        *) ACCENT_N="$FARM_UI_ACCENT" ;;
-    esac
-    CYAN="\033[38;5;${ACCENT_N}m"
-    KEY_C="\033[1;38;5;${ACCENT_N}m"
-    # Selection bar: accent background, near-black bold text.
-    SEL_ON="\033[48;5;${ACCENT_N}m\033[38;5;235m\033[1m"
-    DIM='\033[38;5;244m'
-    GREEN='\033[38;5;114m'
-    RED='\033[1;38;5;203m'
-    YELLOW='\033[38;5;214m'
-else
-    KEY_C="\033[1m${CYAN}"
-    SEL_ON="\033[7m\033[1m"
-    DIM='\033[2m'
-fi
+NC="$C_RESET"
+BOLD="$C_BOLD"
+GREEN="$C_OK"
+RED="$C_FAIL"
+CYAN="$C_ACCENT"
+YELLOW="$C_BOLD"          # warnings render bold, not colored
+DIM="$C_DIM"
+KEY_C="${C_BOLD}${C_ACCENT}"
+SEL_ON="$UI_SEL_ON"
+
+# Core scripts skip their own exit prompt; the menu prompts instead.
+export REMOTE_MENU_ACTIVE=1
 PTR='❯'
 SEP='·'
 
@@ -88,7 +73,7 @@ trap cleanup EXIT
 
 quit_menu() {
     clear
-    printf "\n${GREEN}Exiting Remote Menu.${NC}\n"
+    printf "\n  ${GREEN}Exiting Remote Menu.${NC}\n"
     exit 0
 }
 trap quit_menu SIGINT SIGTERM
@@ -119,10 +104,10 @@ confirm_danger() {
     [ "$i" -lt 0 ] && i=0
     printf -v pad "%${i}s" ""
     tput cnorm
-    printf "\n${RED}╭%s╮${NC}\n" "$line"
-    printf "${RED}│${NC} ${YELLOW}⚠${NC}  ${RED}%s${NC}%s ${RED}│${NC}\n" "$action_label" "$pad"
-    printf "${RED}╰%s╯${NC}\n\n" "$line"
-    read -n 1 -r -p "$(printf "  ${RED}are you sure? [y/N]: ${NC}")" confirm
+    printf "\n  ${RED}╭%s╮${NC}\n" "$line"
+    printf "  ${RED}│${NC} ${YELLOW}⚠${NC}  ${RED}%s${NC}%s ${RED}│${NC}\n" "$action_label" "$pad"
+    printf "  ${RED}╰%s╯${NC}\n\n" "$line"
+    read -n 1 -r -p "$(printf "  ${RED}are you sure? [y/N] (q=cancel): ${NC}")" confirm
     printf "\n"
     tput civis
     [[ "$confirm" =~ ^[Yy]$ ]]
@@ -147,13 +132,12 @@ render_header() {
     fi
 }
 
-# Shortcut key color: accent by default, warn for destructive actions,
-# red for exit.
+# Shortcut key color: accent by default, red for destructive actions
+# and exit.
 key_color() {
     case "$1" in
-        x|u) printf '%s' "${BOLD}${YELLOW}" ;;
-        q)   printf '%s' "${BOLD}${RED}" ;;
-        *)   printf '%s' "$KEY_C" ;;
+        x|u|q) printf '%s' "${BOLD}${RED}" ;;
+        *)     printf '%s' "$KEY_C" ;;
     esac
 }
 
@@ -181,13 +165,13 @@ build_menu() {
     MENU_ENTRIES=()
     SELECTABLE=()
 
-    # Mounted-share indicator for the SHARES header (macOS: /Volumes).
+    # Mounted-share indicator for the SHARES header.
     local shares_label="shares" _s _mounted=0 _total=0
     for _s in "${DEADLINE_SHARE:-}" "${NAS_STUDIO_SHARE:-}" "${NAS_BUERO_SHARE:-}" \
               "${WORKSTATION_HOUDINI_SHARE:-}" "${WORKSTATION_NUKE_SHARE:-}"; do
         [ -n "$_s" ] || continue
         _total=$(( _total + 1 ))
-        mount 2>/dev/null | grep -q "/Volumes/$_s" && _mounted=$(( _mounted + 1 ))
+        share_mounted "$_s" && _mounted=$(( _mounted + 1 ))
     done
     if [ "$_total" -gt 0 ]; then
         shares_label="shares ${SEP} ${_mounted}/${_total} mounted"
@@ -318,28 +302,28 @@ run_action() {
     local action="$1"
     case "$action" in
         status)
-            printf "\n${CYAN}Running remote status...${NC}\n\n"
+            printf "\n  ${CYAN}Running remote status...${NC}\n\n"
             run_child bash "$SCRIPT_DIR/core/ping.sh"
             return 0
             ;;
         wake)
-            printf "\n${CYAN}Running remote wake...${NC}\n\n"
+            printf "\n  ${CYAN}Running remote wake...${NC}\n\n"
             run_child bash "$SCRIPT_DIR/core/wake.sh"
             return 0
             ;;
         mount)
-            printf "\n${CYAN}Mounting remote shares...${NC}\n\n"
+            printf "\n  ${CYAN}Mounting remote shares...${NC}\n\n"
             run_child bash "$SCRIPT_DIR/core/mount.sh"
             return 0
             ;;
         mount_local)
-            printf "\n${CYAN}Mounting shares via local network...${NC}\n\n"
+            printf "\n  ${CYAN}Mounting shares via local network...${NC}\n\n"
             run_child bash "$SCRIPT_DIR/core/mount.sh" --local
             return 0
             ;;
         shutdown_remote)
             if ! confirm_danger "SHUT DOWN ALL REMOTE LINUX NODES AND WORKSTATION"; then
-                printf "${YELLOW}Shutdown cancelled.${NC}\n"
+                printf "  ${YELLOW}Shutdown cancelled.${NC}\n"
                 return 0
             fi
             run_child bash "$SCRIPT_DIR/core/shutdown.sh"
@@ -347,25 +331,25 @@ run_action() {
             ;;
         unmount)
             if ! confirm_danger "UNMOUNT REMOTE SHARES"; then
-                printf "${YELLOW}Unmount cancelled.${NC}\n"
+                printf "  ${YELLOW}Unmount cancelled.${NC}\n"
                 return 0
             fi
-            printf "\n${CYAN}Running remote unmount...${NC}\n\n"
+            printf "\n  ${CYAN}Running remote unmount...${NC}\n\n"
             run_child bash "$SCRIPT_DIR/core/unmount.sh"
             return 0
             ;;
         delcache)
-            printf "\n${CYAN}Running local cache cleanup...${NC}\n\n"
+            printf "\n  ${CYAN}Running local cache cleanup...${NC}\n\n"
             run_child bash "$SCRIPT_DIR/core/delcache.sh"
             return 0
             ;;
         farm)
             if [[ -z "${WORKSTATION_SSH_HOST:-}" || -z "${FARM_SCRIPT_PATH:-}" ]]; then
-                printf "\n${RED}ERROR:${NC} WORKSTATION_SSH_HOST / FARM_SCRIPT_PATH not set.\n"
-                printf "Copy config/secrets.example.sh to config/secrets.sh and fill in your values.\n"
+                printf "\n  ${RED}ERROR:${NC} WORKSTATION_SSH_HOST / FARM_SCRIPT_PATH not set.\n"
+                printf "  Copy config/secrets.example.sh to config/secrets.sh and fill in your values.\n"
                 return 0
             fi
-            printf "\n${CYAN}Connecting to workstation farm menu...${NC}\n\n"
+            printf "\n  ${CYAN}Connecting to workstation farm menu...${NC}\n\n"
             run_child ssh -t "$WORKSTATION_SSH_HOST" "$FARM_SCRIPT_PATH; bash -l"
             return 1
             ;;
@@ -390,7 +374,7 @@ execute_selected() {
 
     if [ $ret -eq 0 ]; then
         printf "\n"
-        read -n 1 -s -r -p "Press any key to return to the menu..."
+        read -n 1 -s -r -p "  Press any key to return to the menu..."
     fi
     # Rebuild so live hints (mounted-share count) reflect the action.
     build_menu

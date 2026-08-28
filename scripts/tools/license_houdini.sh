@@ -1,9 +1,9 @@
 #!/bin/bash
-#       _____                          __
-#      / ___/__ ___ ____ ___  ___ ____/ /  __ _____ ___
-#     / (_ / -_) _ `/ -_) _ \(_-</ __/ _ \/ // (_-<(_-<
-#     \___/\__/\_, /\__/_//_/___/\__/_//_/\_,_/___/___/
-#             /___/
+#  _____                         _
+# |   __|___ ___ ___ ___ ___ ___| |_ _ _ ___ ___
+# |  |  | -_| . | -_|   |_ -|  _|   | | |_ -|_ -|
+# |_____|___|_  |___|_|_|___|___|_|_|___|___|___|
+#           |___|
 #
 cd "$(dirname "$0")"
 source ../lib/config.sh
@@ -68,7 +68,6 @@ for arg in "$@"; do
 done
 
 "$FARM_SCRIPTS_DIR/lib/header.sh"
-echo ""
 # --- CONFIGURATION ---
 X_START="$FARM_X_START"
 SESSION="farm_license_houdini"
@@ -80,10 +79,10 @@ if [ -n "$FORCE_LOCAL" ]; then
     LICENSE_LOCAL="$FORCE_LOCAL"
 else
     farm_prompt_rule
-    read -p "Update license on local workstation ($FARM_LOCAL_NAME) too? (y/n, q=cancel): " LICENSE_LOCAL
+    read -p "  Also update local machine ($FARM_LOCAL_NAME)? (y/n, q=cancel): " LICENSE_LOCAL
     echo ""
     if [[ "$LICENSE_LOCAL" == "q" || "$LICENSE_LOCAL" == "Q" ]]; then
-        echo "Aborted."
+        echo "  Aborted."
         exit 0
     fi
 fi
@@ -104,13 +103,30 @@ license_versions() {
     else
         out=$(timeout 15 ssh -n -F ~/.ssh/config -o LogLevel=ERROR "$node" "$probe" 2>/dev/null)
     fi
-    echo "$out"
+    echo "  $out"
 }
 
 # --- CHECK NODE STATUS ---
-echo ""
 farm_print_section "Checking node status"
-echo ""
+
+# Column-aligned status rows, padded to the widest node name.
+NODE_PAD=0
+for NODE in "${NODES[@]}" "$FARM_LOCAL_NAME"; do
+    (( ${#NODE} > NODE_PAD )) && NODE_PAD=${#NODE}
+done
+
+# print_node_status <node> <info> <action> <action color>
+print_node_status() {
+    local node="$1" info="$2" action="$3" color="$4"
+    local pad=$(( NODE_PAD - ${#node} + 1 ))
+    (( pad < 1 )) && pad=1
+    local spaces
+    printf -v spaces "%${pad}s" ""
+    printf '  [%b%s%b]%s%-14s%b%s%b\n' \
+        "$FARM_C_NODE" "$node" "$FARM_C_RESET" "$spaces" \
+        "$info" "$color" "$action" "$FARM_C_RESET"
+}
+
 declare -A NODE_OS
 N_CHECK=0 N_SKIP=0
 for NODE in "${NODES[@]}"; do
@@ -122,18 +138,18 @@ for NODE in "${NODES[@]}"; do
     case ${NODE_OS[$NODE]} in
         0)
             farm_spin_stop
-            echo "$(farm_node_tag "$NODE") offline - skipped"
+            print_node_status "$NODE" "offline" "skipped" "$FARM_C_DIM"
             (( N_SKIP++ ))
             ;;
         1)
             farm_spin_stop
-            echo "$(farm_node_tag "$NODE") on Windows - skipped"
+            print_node_status "$NODE" "windows" "skipped" "$FARM_C_DIM"
             (( N_SKIP++ ))
             ;;
         2)
             VER=$(license_versions "$NODE")
             farm_spin_stop
-            echo "$(farm_node_tag "$NODE") on Linux - licenses: ${VER:-none found} - will check"
+            print_node_status "$NODE" "${VER:-no licenses}" "will check" "$FARM_C_OK"
             (( N_CHECK++ ))
             ;;
     esac
@@ -143,21 +159,20 @@ if [[ "$LICENSE_LOCAL" =~ ^[Yy]$ ]]; then
     farm_spin_start "checking $FARM_LOCAL_NAME"
     VER=$(license_versions "")
     farm_spin_stop
-    echo "$(farm_node_tag "$FARM_LOCAL_NAME") local workstation - licenses: ${VER:-none found} - will check"
+    print_node_status "$FARM_LOCAL_NAME" "${VER:-no licenses}" "will check" "$FARM_C_OK"
     (( N_CHECK++ ))
 else
-    echo "$(farm_node_tag "$FARM_LOCAL_NAME") local workstation - skipped"
+    print_node_status "$FARM_LOCAL_NAME" "local" "skipped" "$FARM_C_DIM"
     (( N_SKIP++ ))
 fi
 
 echo ""
 farm_print_summary "$N_CHECK to check ${FARM_G_SEP} $N_SKIP skipped"
-echo ""
 if [ "$AUTO_YES" -eq 1 ]; then
-    echo "Auto-yes enabled: starting license update."
+    echo "  Auto-yes enabled: starting license update."
 else
     if ! farm_press_any_or_q "Press any key to start, q to abort"; then
-        echo "Aborted."
+        echo "  Aborted."
         exit 0
     fi
 fi
@@ -180,34 +195,33 @@ SFX_EMAIL="${FARM_SIDEFX_EMAIL:-}"
 SFX_PASS="${FARM_SIDEFX_PASSWORD:-}"
 
 farm_print_section "SideFX account login"
-echo ""
 if [ -n "$SFX_EMAIL" ] && [ -n "$SFX_PASS" ]; then
-    echo "Using SideFX account from config/secrets.sh: $SFX_EMAIL"
+    echo "  account (secrets.sh): $SFX_EMAIL"
     echo ""
 else
-    echo "Tip: set FARM_SIDEFX_EMAIL / FARM_SIDEFX_PASSWORD in"
-    echo "config/secrets.sh to skip this prompt."
+    echo "  Tip: set FARM_SIDEFX_EMAIL / FARM_SIDEFX_PASSWORD in"
+    echo "  config/secrets.sh to skip this prompt."
     echo ""
     if [ -n "$SFX_EMAIL" ]; then
-        read -p "SideFX account email [$SFX_EMAIL] (q=cancel): " SFX_EMAIL_IN
+        read -p "  SideFX email [$SFX_EMAIL] (q=cancel): " SFX_EMAIL_IN
         if [[ "$SFX_EMAIL_IN" == "q" || "$SFX_EMAIL_IN" == "Q" ]]; then
-            echo "Aborted."
+            echo "  Aborted."
             exit 0
         fi
         [ -n "$SFX_EMAIL_IN" ] && SFX_EMAIL="$SFX_EMAIL_IN"
     fi
     while [ -z "$SFX_EMAIL" ]; do
-        read -p "SideFX account email (q=cancel): " SFX_EMAIL
+        read -p "  SideFX account email (q=cancel): " SFX_EMAIL
         if [[ "$SFX_EMAIL" == "q" || "$SFX_EMAIL" == "Q" ]]; then
-            echo "Aborted."
+            echo "  Aborted."
             exit 0
         fi
     done
     if [ -z "$SFX_PASS" ]; then
-        read -s -p "SideFX account password: " SFX_PASS
+        read -s -p "  SideFX account password: " SFX_PASS
         echo ""
         if [ -z "$SFX_PASS" ]; then
-            echo "No password entered. Aborted."
+            echo "  No password entered. Aborted."
             exit 0
         fi
     fi
@@ -236,10 +250,10 @@ if [ -z "${SESI:-}" ] || [ ! -x "$SESI" ]; then
 fi
 echo "Using: $SESI"
 echo ""
-echo "--- 1/3 CURRENT LICENSES ---"
+echo "▸ 1/3 current licenses"
 sudo "$SESI" print-license
 echo ""
-echo "--- 2/3 REDEEM / UPGRADE (interactive) ---"
+echo "▸ 2/3 redeem / upgrade (interactive)"
 # Version upgrades (e.g. 21.0 -> 22.0) arrive as "modification ...
 # (upgraded from X)" entitlements: they upgrade a license ALREADY on this
 # machine in place and consume nothing. sesictrl sync-licenses can NOT do
@@ -256,10 +270,10 @@ echo ""
 sudo "$SESI" redeem --email "$SFX_EMAIL" --password "$SFX_PASS"
 unset SFX_PASS
 echo ""
-echo "--- 3/3 LICENSES AFTER ---"
+echo "▸ 3/3 licenses after"
 sudo "$SESI" print-license
 echo ""
-echo '--- LICENSE UPDATE DONE ---'
+echo '▸ license update done'
 echo 'Press Enter to exit.'
 read
 EOS

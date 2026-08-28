@@ -1,14 +1,14 @@
 #!/bin/bash
-#       _____                          __
-#      / ___/__ ___ ____ ___  ___ ____/ /  __ _____ ___
-#     / (_ / -_) _ `/ -_) _ \(_-</ __/ _ \/ // (_-<(_-<
-#     \___/\__/\_, /\__/_//_/___/\__/_//_/\_,_/___/___/
-#             /___/
+#  _____                         _
+# |   __|___ ___ ___ ___ ___ ___| |_ _ _ ___ ___
+# |  |  | -_| . | -_|   |_ -|  _|   | | |_ -|_ -|
+# |_____|___|_  |___|_|_|___|___|_|_|___|___|___|
+#           |___|
 #
 
 run_or_print() {
     if [ "$DRY_RUN" -eq 1 ]; then
-        echo -e "${FARM_C_WARN}[dry-run]${FARM_C_RESET} $*"
+        echo -e "  ${FARM_C_WARN}[dry-run]${FARM_C_RESET} $*"
         return 0
     fi
     "$@"
@@ -31,20 +31,20 @@ check_dualboot_status() {
 
     case $OS_STATUS in
         0)
-            echo "$(farm_node_tag "$NAME") offline - sending WOL..."
+            echo "  $(farm_node_tag "$NAME") offline - sending WOL..."
             return 0
             ;;
         2)
-            echo "$(farm_node_tag "$NAME") already on Linux - ready!"
+            echo "  $(farm_node_tag "$NAME") already on Linux - ready!"
             return 3
             ;;
         1)
             local result_code=2
             if [ "$DEADLINE_PREJOB" -eq 1 ]; then
-                echo "$(farm_node_tag "$NAME") on Windows - skipped by silent policy."
+                echo "  $(farm_node_tag "$NAME") on Windows - skipped by silent policy."
                 result_code=5
             else
-                echo "$(farm_node_tag "$NAME") is on Windows"
+                echo "  $(farm_node_tag "$NAME") is on Windows"
                 print_windows_tasks "$NAME"
 
                 local LOGGED_IN
@@ -67,7 +67,7 @@ check_dualboot_status() {
                         farm_print_warn "$NAME: WINDOWS UPDATE ACTIVE - skipped by default."
                         result_code=2
                     else
-                        echo "$(farm_node_tag "$NAME") Windows idle - will reboot to Linux"
+                        echo "  $(farm_node_tag "$NAME") Windows idle - will reboot to Linux"
                         result_code=1
                     fi
                 fi

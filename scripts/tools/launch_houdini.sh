@@ -1,9 +1,9 @@
 #!/bin/bash
-#       _____                          __
-#      / ___/__ ___ ____ ___  ___ ____/ /  __ _____ ___
-#     / (_ / -_) _ `/ -_) _ \(_-</ __/ _ \/ // (_-<(_-<
-#     \___/\__/\_, /\__/_//_/___/\__/_//_/\_,_/___/___/
-#             /___/
+#  _____                         _
+# |   __|___ ___ ___ ___ ___ ___| |_ _ _ ___ ___
+# |  |  | -_| . | -_|   |_ -|  _|   | | |_ -|_ -|
+# |_____|___|_  |___|_|_|___|___|_|_|___|___|___|
+#           |___|
 #
 
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
@@ -20,7 +20,7 @@ HFS=$(printf '%s\n' /opt/hfs* 2>/dev/null | sort -V | tail -n 1)
 
 # Check if the directory exists before proceeding
 if [ -d "$HFS" ]; then
-    echo "Found Houdini at $HFS. Sourcing environment..."
+    echo "  Found Houdini at $HFS. Sourcing environment..."
     
     # Move into the directory and source the setup script
     cd "$HFS"
@@ -30,6 +30,6 @@ if [ -d "$HFS" ]; then
     # Use 'houdini -foreground' if you want to see console logs in this terminal
     houdini -foreground
 else
-    echo "Error: Houdini directory not found at $HFS"
+    echo "  Error: Houdini directory not found at $HFS"
     exit 1
 fi

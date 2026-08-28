@@ -1,88 +1,21 @@
 #!/bin/bash
-#       _____                          __
-#      / ___/__ ___ ____ ___  ___ ____/ /  __ _____ ___
-#     / (_ / -_) _ `/ -_) _ \(_-</ __/ _ \/ // (_-<(_-<
-#     \___/\__/\_, /\__/_//_/___/\__/_//_/\_,_/___/___/
-#             /___/
+#  _____                         _
+# |   __|___ ___ ___ ___ ___ ___| |_ _ _ ___ ___
+# |  |  | -_| . | -_|   |_ -|  _|   | | |_ -|_ -|
+# |_____|___|_  |___|_|_|___|___|_|_|___|___|___|
+#           |___|
 #
-export LC_ALL=en_US.UTF-8
-
-WIDTH=60
-PING_COUNT=1
-PING_TIMEOUT_MS=1000
+# Ping all farm nodes in parallel and print an UP/DOWN summary.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Load secrets (IP addresses, node list).
-if [ ! -f "$SCRIPT_DIR/../config/secrets.sh" ]; then
-    echo "ERROR: config/secrets.sh not found" >&2
-    echo "Copy config/secrets.example.sh to config/secrets.sh and fill in your values." >&2
-    exit 1
-fi
-source "$SCRIPT_DIR/../config/secrets.sh"
+source "$SCRIPT_DIR/../lib/ui.sh"
+ui_require_secrets "$SCRIPT_DIR"
 
 NODES=("${PING_NODES[@]}")
-if [ -f "$SCRIPT_DIR/../lib/logo.sh" ]; then
-  source "$SCRIPT_DIR/../lib/logo.sh"
-fi
-if [ -f "$SCRIPT_DIR/../lib/spin.sh" ]; then
-  source "$SCRIPT_DIR/../lib/spin.sh"
-fi
-if [ "${#SPIN_FRAMES[@]}" -eq 0 ]; then
-  SPIN_FRAMES=('|' '/' '-' '\')
-  SPIN_COLOR="" SPIN_RESET=""
-fi
-
-if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
-  C_RESET=$'\033[0m'
-  C_BOLD=$'\033[1m'
-  C_HEAD=$'\033[36m'
-  C_SUB=$'\033[35m'
-  C_OK=$'\033[32m'
-  C_FAIL=$'\033[31m'
-else
-  C_RESET=""
-  C_BOLD=""
-  C_HEAD=""
-  C_SUB=""
-  C_OK=""
-  C_FAIL=""
-fi
-
-line_equals() {
-  printf '%*s\n' "$WIDTH" '' | tr ' ' '='
-}
-
-subline() {
-  printf '%*s\n' "$WIDTH" '' | tr ' ' '-'
-}
-
-header() {
-  echo
-  line_equals
-  printf '%b    %s%b\n' "${C_HEAD}${C_BOLD}" "$1" "$C_RESET"
-  line_equals
-  echo
-}
-
-section() {
-  echo
-  subline
-  printf '%b    %s%b\n' "${C_SUB}${C_BOLD}" "$1" "$C_RESET"
-  subline
-  echo
-}
-
-ts() {
-  date '+%H:%M:%S'
-}
 
 check_node_bg() {
-  local name="$1"
-  local ip="$2"
-  local out_file="$3"
-
-  if ping -c "$PING_COUNT" -W "$PING_TIMEOUT_MS" "$ip" >/dev/null 2>&1; then
+  local name="$1" ip="$2" out_file="$3"
+  if ui_ping "$ip"; then
     printf '%s|%s|OK\n' "$name" "$ip" > "$out_file"
   else
     printf '%s|%s|DOWN\n' "$name" "$ip" > "$out_file"
@@ -90,11 +23,8 @@ check_node_bg() {
 }
 
 log_status() {
-  local name="$1"
-  local ip="$2"
-  local status="$3"
-  local color="$4"
-  printf '[%s] %b%-8s%b %-10s %s\n' "$(ts)" "$color" "$status" "$C_RESET" "$name" "$ip"
+  local name="$1" ip="$2" status="$3" color="$4"
+  printf '  [%s] %b%-8s%b %-10s %s\n' "$(ts)" "$color" "$status" "$C_RESET" "$name" "$ip"
 }
 
 spinner_until_done() {
@@ -112,8 +42,8 @@ spinner_until_done() {
     done
 
     if [ "$all_done" -eq 0 ]; then
-      printf '\r[%s] %bINFO%b Checking nodes in parallel... %s%s%s' \
-        "$(ts)" "$C_SUB" "$C_RESET" \
+      printf '\r  [%s] %bINFO%b Checking nodes in parallel... %s%s%s' \
+        "$(ts)" "$C_ACCENT" "$C_RESET" \
         "$SPIN_COLOR" "${SPIN_FRAMES[$(( idx % ${#SPIN_FRAMES[@]} ))]}" "$SPIN_RESET"
       idx=$(( idx + 1 ))
       sleep 0.08
@@ -123,10 +53,7 @@ spinner_until_done() {
   printf '\r%*s\r' "$WIDTH" ''
 }
 
-if declare -F play_logo_animation >/dev/null 2>&1; then
-  play_logo_animation
-fi
-
+ui_play_logo
 header "REMOTE STATUS"
 section "PING NODES"
 
@@ -168,6 +95,5 @@ for node in "${NODES[@]}"; do
   fi
 done
 
-subline
-printf '[%s] %bUP%b: %d  %bDOWN%b: %d\n' "$(ts)" "$C_OK" "$C_RESET" "$up_count" "$C_FAIL" "$C_RESET" "$down_count"
-subline
+echo
+ui_summary "${up_count} up ${UI_G_SEP} ${down_count} down"

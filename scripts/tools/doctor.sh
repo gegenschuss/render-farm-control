@@ -1,9 +1,9 @@
 #!/bin/bash
-#       _____                          __
-#      / ___/__ ___ ____ ___  ___ ____/ /  __ _____ ___
-#     / (_ / -_) _ `/ -_) _ \(_-</ __/ _ \/ // (_-<(_-<
-#     \___/\__/\_, /\__/_//_/___/\__/_//_/\_,_/___/___/
-#             /___/
+#  _____                         _
+# |   __|___ ___ ___ ___ ___ ___| |_ _ _ ___ ___
+# |  |  | -_| . | -_|   |_ -|  _|   | | |_ -|_ -|
+# |_____|___|_  |___|_|_|___|___|_|_|___|___|___|
+#           |___|
 #
 cd "$(dirname "$0")"
 source ../lib/config.sh
@@ -28,7 +28,6 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
 fi
 
 "$FARM_SCRIPTS_DIR/lib/header.sh"
-echo ""
 farm_print_title "FARM DOCTOR"
 
 TOTAL=0
@@ -74,7 +73,7 @@ if [[ "$FARM_OS" == "mac" ]]; then
     if osascript -e 'id of application "iTerm2"' >/dev/null 2>&1; then
         printf "  [OK]   %-20s installed\n" "iTerm2"
     else
-        printf "  [WARN] %-20s not installed (Terminal.app fallback enabled)\n" "iTerm2"
+        printf "  [WARN] %-20s missing (Terminal.app used)\n" "iTerm2"
         ((WARN++))
     fi
 else

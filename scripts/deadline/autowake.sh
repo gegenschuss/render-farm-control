@@ -1,9 +1,9 @@
 #!/bin/bash
-#       _____                          __
-#      / ___/__ ___ ____ ___  ___ ____/ /  __ _____ ___
-#     / (_ / -_) _ `/ -_) _ \(_-</ __/ _ \/ // (_-<(_-<
-#     \___/\__/\_, /\__/_//_/___/\__/_//_/\_,_/___/___/
-#             /___/
+#  _____                         _
+# |   __|___ ___ ___ ___ ___ ___| |_ _ _ ___ ___
+# |  |  | -_| . | -_|   |_ -|  _|   | | |_ -|_ -|
+# |_____|___|_  |___|_|_|___|___|_|_|___|___|___|
+#           |___|
 #
 cd "$(dirname "$0")"
 source ../lib/config.sh
@@ -54,11 +54,11 @@ has_units() {
 
 print_install_hint() {
     farm_print_warn "AutoWake systemd unit files not found."
-    echo "Expected:"
+    echo "  Expected:"
     echo "  - $SERVICE_PATH"
     echo "  - $TIMER_PATH"
     echo ""
-    echo "Install with:"
+    echo "  Install with:"
     echo "  bash \"$FARM_BASE_DIR/autowake.sh\" install"
 }
 
@@ -115,8 +115,8 @@ EOF
     echo "  - $SERVICE_PATH"
     echo "  - $TIMER_PATH"
     echo ""
-    echo "Next step: run this script with 'enable' to activate timer."
-    echo "Optional for headless runs: sudo loginctl enable-linger $USER"
+    echo "  Next step: run with 'enable' to activate the timer."
+    echo "  Headless runs: sudo loginctl enable-linger $USER"
 }
 
 enable_timer() {
@@ -188,10 +188,10 @@ status_timer() {
     systemctl --user is-enabled --quiet "$TIMER_NAME" && enabled=1
     systemctl --user is-active --quiet "$TIMER_NAME" && active=1
 
-    echo "enabled=$enabled"
-    echo "active=$active"
-    echo "timer=$TIMER_NAME"
-    echo "service=$SERVICE_NAME"
+    echo "  enabled=$enabled"
+    echo "  active=$active"
+    echo "  timer=$TIMER_NAME"
+    echo "  service=$SERVICE_NAME"
 }
 
 is_enabled_timer() {

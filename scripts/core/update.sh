@@ -1,9 +1,9 @@
 #!/bin/bash
-#       _____                          __
-#      / ___/__ ___ ____ ___  ___ ____/ /  __ _____ ___
-#     / (_ / -_) _ `/ -_) _ \(_-</ __/ _ \/ // (_-<(_-<
-#     \___/\__/\_, /\__/_//_/___/\__/_//_/\_,_/___/___/
-#             /___/
+#  _____                         _
+# |   __|___ ___ ___ ___ ___ ___| |_ _ _ ___ ___
+# |  |  | -_| . | -_|   |_ -|  _|   | | |_ -|_ -|
+# |_____|___|_  |___|_|_|___|___|_|_|___|___|___|
+#           |___|
 #
 cd "$(dirname "$0")"
 source ../lib/config.sh
@@ -47,7 +47,6 @@ for arg in "$@"; do
 done
 
 "$FARM_SCRIPTS_DIR/lib/header.sh"
-echo ""
 # --- CONFIGURATION ---
 X_START="$FARM_X_START"
 SESSION="farm_update"
@@ -61,16 +60,32 @@ sudo DEBIAN_FRONTEND=noninteractive \
 apt full-upgrade -y && \
 sudo needrestart -r a; \
 if [ -f /var/run/reboot-required ]; then \
-    echo -e '\e[31m[!!!] REBOOT REQUIRED [!!!]\e[0m'; \
+    echo -e '  \e[31m[!!!] REBOOT REQUIRED [!!!]\e[0m'; \
 else \
-    echo -e '\e[32m[OK] No reboot necessary.\e[0m'; \
+    echo -e '  \e[32m[OK] No reboot necessary.\e[0m'; \
 fi; \
-echo '--- UPDATE DONE ---'; \
-echo 'Press Enter to exit.'; \
+echo '  ▸ update done'; \
+echo '  Press Enter to exit.'; \
 read"
 
 # --- LOCAL COMMAND (passwordless sudo via /etc/sudoers.d/farm) ---
-LOCAL_CMD="$REMOTE_CMD"
+# Nodes stay on apt; the local workstation may be apt (Ubuntu) or dnf
+# (Rocky), so the local pane picks its package manager at runtime.
+# Rocky: needs-restarting -r (dnf-utils) exits 1 when a reboot is due.
+LOCAL_CMD="if command -v apt >/dev/null 2>&1; then \
+$REMOTE_CMD
+else \
+sudo dnf upgrade -y --refresh; \
+if command -v needs-restarting >/dev/null 2>&1 && \
+   ! needs-restarting -r >/dev/null 2>&1; then \
+    echo -e '  \e[31m[!!!] REBOOT REQUIRED [!!!]\e[0m'; \
+else \
+    echo -e '  \e[32m[OK] No reboot necessary.\e[0m'; \
+fi; \
+echo '  ▸ update done'; \
+echo '  Press Enter to exit.'; \
+read; \
+fi"
 
 if [ "$FORCE_LOCAL" = "y" ]; then
     UPDATE_LOCAL="y"
@@ -81,7 +96,6 @@ fi
 # --- CHECK NODE STATUS ---
 echo ""
 farm_print_section "Checking node status"
-echo ""
 declare -A NODE_OS
 N_UPDATE=0 N_WIN=0 N_OFF=0
 for NODE in "${NODES[@]}"; do
@@ -93,19 +107,19 @@ for NODE in "${NODES[@]}"; do
     farm_spin_stop
     case ${NODE_OS[$NODE]} in
         0)
-            echo "$(farm_node_tag "$NODE") offline - skipped"
+            echo "  $(farm_node_tag "$NODE") offline - skipped"
             (( N_OFF++ ))
             ;;
         1)
-            echo "$(farm_node_tag "$NODE") on Windows - skipped"
+            echo "  $(farm_node_tag "$NODE") on Windows - skipped"
             print_windows_tasks "$NODE"
             (( N_WIN++ ))
             ;;
         2)
             if farm_is_dual_boot_node "$NODE"; then
-                echo "$(farm_node_tag "$NODE") on Linux - will update"
+                echo "  $(farm_node_tag "$NODE") on Linux - will update"
             else
-                echo "$(farm_node_tag "$NODE") online - will update"
+                echo "  $(farm_node_tag "$NODE") online - will update"
             fi
             (( N_UPDATE++ ))
             ;;
@@ -113,20 +127,20 @@ for NODE in "${NODES[@]}"; do
 done
 
 if [[ "$UPDATE_LOCAL" =~ ^[Yy]$ ]]; then
-    echo "$(farm_node_tag "$FARM_LOCAL_NAME") local workstation - will update"
+    echo "  $(farm_node_tag "$FARM_LOCAL_NAME") local workstation - will update"
     (( N_UPDATE++ ))
 else
-    echo "$(farm_node_tag "$FARM_LOCAL_NAME") local workstation - skipped (use --local / menu U to include)"
+    echo "  $(farm_node_tag "$FARM_LOCAL_NAME") local workstation - skipped (menu U / --local)"
 fi
 
 echo ""
 farm_print_summary "$N_UPDATE to update ${FARM_G_SEP} $N_WIN on windows ${FARM_G_SEP} $N_OFF offline"
 echo ""
 if [ "$AUTO_YES" -eq 1 ]; then
-    echo "Auto-yes enabled: starting updates."
+    echo "  Auto-yes enabled: starting updates."
 else
     if ! farm_press_any_or_q "Press any key to start, q to abort"; then
-        echo "Aborted."
+        echo "  Aborted."
         exit 0
     fi
 fi

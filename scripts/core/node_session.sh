@@ -1,9 +1,9 @@
 #!/bin/bash
-#       _____                          __
-#      / ___/__ ___ ____ ___  ___ ____/ /  __ _____ ___
-#     / (_ / -_) _ `/ -_) _ \(_-</ __/ _ \/ // (_-<(_-<
-#     \___/\__/\_, /\__/_//_/___/\__/_//_/\_,_/___/___/
-#             /___/
+#  _____                         _
+# |   __|___ ___ ___ ___ ___ ___| |_ _ _ ___ ___
+# |  |  | -_| . | -_|   |_ -|  _|   | | |_ -|_ -|
+# |_____|___|_  |___|_|_|___|___|_|_|___|___|___|
+#           |___|
 #
 cd "$(dirname "$0")"
 source ../lib/config.sh
@@ -82,7 +82,6 @@ case "$MODE" in
 esac
 
 "$FARM_SCRIPTS_DIR/lib/header.sh"
-echo ""
 
 X_START="$FARM_X_START"
 farm_print_title "$UI_TITLE"
@@ -102,10 +101,10 @@ for NODE in "${NODES[@]}"; do
     OS_STATUS=$?
     case "$OS_STATUS" in
         0)
-            echo "$(farm_node_tag "$NODE") offline - skipped"
+            echo "  $(farm_node_tag "$NODE") offline - skipped"
             ;;
         1)
-            echo "$(farm_node_tag "$NODE") on Windows - skipped"
+            echo "  $(farm_node_tag "$NODE") on Windows - skipped"
             ;;
         2)
             ELIGIBLE_NODES+=("$NODE")

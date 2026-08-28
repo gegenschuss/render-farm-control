@@ -1,159 +1,32 @@
 #!/bin/bash
-#       _____                          __
-#      / ___/__ ___ ____ ___  ___ ____/ /  __ _____ ___
-#     / (_ / -_) _ `/ -_) _ \(_-</ __/ _ \/ // (_-<(_-<
-#     \___/\__/\_, /\__/_//_/___/\__/_//_/\_,_/___/___/
-#             /___/
+#  _____                         _
+# |   __|___ ___ ___ ___ ___ ___| |_ _ _ ___ ___
+# |  |  | -_| . | -_|   |_ -|  _|   | | |_ -|_ -|
+# |_____|___|_  |___|_|_|___|___|_|_|___|___|___|
+#           |___|
 #
-export LC_ALL=en_US.UTF-8
-
-WIDTH=60
-TAILSCALE="/Applications/Tailscale.app/Contents/MacOS/Tailscale"
-MOUNT_WAIT_SECONDS=5
-PING_COUNT=1
+# Wake the farm: check Tailscale, trigger Wake-on-LAN via the relay,
+# mount the SMB shares, then connect to the workstation farm menu.
+# Runs on macOS and Linux.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../lib/ui.sh"
+ui_require_secrets "$SCRIPT_DIR"
 
-# Load secrets (IPs, usernames, share names).
-if [ ! -f "$SCRIPT_DIR/../config/secrets.sh" ]; then
-    echo "ERROR: config/secrets.sh not found" >&2
-    echo "Copy config/secrets.example.sh to config/secrets.sh and fill in your values." >&2
-    exit 1
-fi
-source "$SCRIPT_DIR/../config/secrets.sh"
-source "$SCRIPT_DIR/../lib/logo.sh"
-[ -f "$SCRIPT_DIR/../lib/spin.sh" ] && source "$SCRIPT_DIR/../lib/spin.sh"
+MOUNT_WAIT_SECONDS=5
+SSH_RETRY_SECONDS=10
 
-if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
-  C_RESET=$'\033[0m'
-  C_BOLD=$'\033[1m'
-  C_INFO=$'\033[36m'
-  C_SUB=$'\033[35m'
-  C_OK=$'\033[32m'
-  C_WARN=$'\033[33m'
-  C_FAIL=$'\033[31m'
-else
-  C_RESET=""
-  C_BOLD=""
-  C_INFO=""
-  C_SUB=""
-  C_OK=""
-  C_WARN=""
-  C_FAIL=""
-fi
-
-line_equals() {
-  printf '%*s\n' "$WIDTH" '' | tr ' ' '='
-}
-
-center() {
-  local msg="$1"
-  printf '%*s\n' $(( (${#msg} + WIDTH) / 2 )) "$msg"
-}
-
-ts() {
-  date '+%H:%M:%S'
-}
-
-log() {
-  local level="$1"
-  shift
-  local msg="$*"
-  local color=""
-  case "$level" in
-    INFO) color="$C_INFO" ;;
-    OK)   color="$C_OK" ;;
-    WARN) color="$C_WARN" ;;
-    FAIL) color="$C_FAIL" ;;
-  esac
-  printf '[%s] %b%-5s%b %s\n' "$(ts)" "$color" "$level" "$C_RESET" "$msg"
-}
-
-subline() {
-  printf '%*s\n' "$WIDTH" '' | tr ' ' '-'
-}
-
-section() {
-  echo
-  subline
-  printf '%b    %s%b\n' "${C_SUB}${C_BOLD}" "$1" "$C_RESET"
-  subline
-  echo
-}
-
-header() {
-  echo
-  line_equals
-  printf '%b    %s%b\n' "${C_INFO}${C_BOLD}" "$1" "$C_RESET"
-  line_equals
-  echo
-}
-
-pass() {
-  log "OK" "$1"
-}
-
-warn() {
-  log "WARN" "$1"
-}
-
-fail() {
-  log "FAIL" "$1"
-}
-
-is_host_reachable() {
-  local host="$1"
-  if ping -c "$PING_COUNT" "$host" >/dev/null 2>&1; then
-    return 0
-  fi
-  return 1
-}
-
-mount_share() {
-  local user="$1"
-  local host="$2"
-  local share="$3"
-  local mount_point="/Volumes/$share"
-  local url="smb://$user@$host/$share"
-
-  if mount | grep -q "$mount_point"; then
-    pass "Already mounted: $mount_point"
-    log "INFO" "Skipping mount wait; volume already ready"
-    return 0
-  fi
-
-  log "INFO" "Mounting: $mount_point"
-  if osascript -e "mount volume \"$url\"" >/dev/null 2>&1; then
-    log "INFO" "Waiting $MOUNT_WAIT_SECONDS seconds for mount readiness"
-    sleep "$MOUNT_WAIT_SECONDS"
-    if mount | grep -q "$mount_point"; then
-      pass "Mounted: $mount_point"
-    else
-      warn "Mount command completed but $mount_point not detected"
-    fi
-  else
-    warn "Direct mount failed for $share; trying Finder fallback"
-    if open -g "$url"; then
-      log "INFO" "Waiting $MOUNT_WAIT_SECONDS seconds for mount readiness"
-      sleep "$MOUNT_WAIT_SECONDS"
-      if mount | grep -q "$mount_point"; then
-        pass "Mounted via fallback: $mount_point"
-      else
-        warn "Fallback completed but $mount_point not detected"
-      fi
-    else
-      warn "Failed to request mount for $share"
-      warn "Check Keychain credential for $user@$host"
-      return 1
-    fi
-  fi
-}
-
-play_logo_animation
+ui_play_logo
 header "REMOTE WAKE START"
+echo
 
 # 0. Preflight: check Tailscale is connected
 log "INFO" "Checking Tailscale status"
+TAILSCALE="$(tailscale_bin)"
+if [ -z "$TAILSCALE" ]; then
+  fail "Tailscale CLI not found. Install Tailscale and try again."
+  exit 1
+fi
 STATUS=$("$TAILSCALE" status 2>/dev/null)
 if [ $? -ne 0 ]; then
   fail "Tailscale is not running. Start it and try again."
@@ -174,32 +47,32 @@ else
   warn "Wake command reported issues on $WAKE_RELAY_HOST"
 fi
 
-# 2. Mount required SMB shares (passwords handled by Keychain)
+# 2. Mount required SMB shares (credentials from Keychain / keyring)
 section "MOUNT SMB SHARES"
 mount_share "$DEADLINE_USER" "$DEADLINE_HOST" "$DEADLINE_SHARE"
 mount_share "$NAS_USER" "$NAS_HOST" "$NAS_STUDIO_SHARE"
 mount_share "$NAS_USER" "$NAS_HOST" "$NAS_BUERO_SHARE"
 
-
-# 4. Retry SSH into workstation every 10 seconds until successful
+# 3. Retry SSH into the workstation until it has booted
 section "CONNECT TO WORKSTATION"
-spin_start "waiting 50s for workstation to boot"
-sleep 50
-spin_stop
-attempt=1
-spin_start "connecting to $WORKSTATION_SSH_HOST"
-until ssh -o ConnectTimeout=5 -o BatchMode=yes -o StrictHostKeyChecking=no "$WORKSTATION_SSH_HOST" exit 2>/dev/null; do
-  spin_stop
-  warn "Attempt $attempt failed; retrying in 10 seconds"
+attempt=0
+spin_start "waiting for $WORKSTATION_SSH_HOST to boot"
+until ssh -o ConnectTimeout=5 -o BatchMode=yes -o StrictHostKeyChecking=no \
+    "$WORKSTATION_SSH_HOST" exit 2>/dev/null; do
   attempt=$((attempt + 1))
-  spin_start "retrying ssh to $WORKSTATION_SSH_HOST"
-  sleep 10
+  sleep "$SSH_RETRY_SECONDS"
 done
 spin_stop
-pass "$WORKSTATION_SSH_HOST is reachable"
-subline
+if [ "$attempt" -gt 0 ]; then
+  pass "$WORKSTATION_SSH_HOST is reachable (after $attempt retries)"
+else
+  pass "$WORKSTATION_SSH_HOST is reachable"
+fi
+echo
+
+# 4. Mount the workstation shares, then attach to the farm menu
 spin_start "checking reachability: $WORKSTATION_HOST"
-if is_host_reachable "$WORKSTATION_HOST"; then
+if ui_ping "$WORKSTATION_HOST"; then
   spin_stop
   pass "Host reachable: $WORKSTATION_HOST"
   mount_share "$WORKSTATION_USER" "$WORKSTATION_HOST" "$WORKSTATION_HOUDINI_SHARE"

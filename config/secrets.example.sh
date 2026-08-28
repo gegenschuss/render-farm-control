@@ -1,9 +1,9 @@
 #!/bin/bash
-#       _____                          __
-#      / ___/__ ___ ____ ___  ___ ____/ /  __ _____ ___
-#     / (_ / -_) _ `/ -_) _ \(_-</ __/ _ \/ // (_-<(_-<
-#     \___/\__/\_, /\__/_//_/___/\__/_//_/\_,_/___/___/
-#             /___/
+#  _____                         _
+# |   __|___ ___ ___ ___ ___ ___| |_ _ _ ___ ___
+# |  |  | -_| . | -_|   |_ -|  _|   | | |_ -|_ -|
+# |_____|___|_  |___|_|_|___|___|_|_|___|___|___|
+#           |___|
 #
 # ============================================
 #   farm - LOCAL SECRETS (TEMPLATE)
@@ -56,12 +56,10 @@ FARM_WORKSTATION_MAC="AA:BB:CC:DD:EE:FF"
 # --- Installer Search Directories (farm_install_app.sh) ---
 FARM_INSTALL_DIR_DEADLINE="/mnt/studio/install/deadline"
 FARM_INSTALL_DIR_HOUDINI="/mnt/studio/install/houdini"
-
-# --- UI Accent (optional) ---
-# Pin one 256-color accent for menus/headers instead of a random pick
-# per run (e.g. 81=sky, 114=green, 176=orchid, 215=peach, 222=cream).
-# Leave empty for a random accent every time.
-FARM_UI_ACCENT=""
+FARM_INSTALL_DIR_BLENDER="/mnt/studio/install/blender"
+FARM_INSTALL_DIR_MOCHA="/mnt/studio/install/mocha"
+FARM_INSTALL_DIR_RESOLVE="/mnt/studio/install/resolve"
+FARM_INSTALL_DIR_NUKE="/mnt/studio/install/nuke"
 
 # --- SideFX Account (license_houdini.sh) ---
 # Used for non-interactive "sesictrl login --email --password" on every

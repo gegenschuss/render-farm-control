@@ -1,9 +1,9 @@
 #!/bin/bash
-#       _____                          __
-#      / ___/__ ___ ____ ___  ___ ____/ /  __ _____ ___
-#     / (_ / -_) _ `/ -_) _ \(_-</ __/ _ \/ // (_-<(_-<
-#     \___/\__/\_, /\__/_//_/___/\__/_//_/\_,_/___/___/
-#             /___/
+#  _____                         _
+# |   __|___ ___ ___ ___ ___ ___| |_ _ _ ___ ___
+# |  |  | -_| . | -_|   |_ -|  _|   | | |_ -|_ -|
+# |_____|___|_  |___|_|_|___|___|_|_|___|___|___|
+#           |___|
 #
 # ============================================
 #   farm - SHARED CONFIG
@@ -56,8 +56,8 @@ FARM_DEADLINECOMMAND="${FARM_DEADLINECOMMAND:-/opt/Thinkbox/Deadline10/bin/deadl
 # secrets.sh lives in config/ (two levels up + config/).
 _FARM_SECRETS_FILE="${FARM_SECRETS_FILE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/config/secrets.sh}"
 if [ ! -f "$_FARM_SECRETS_FILE" ]; then
-    echo "ERROR: secrets.sh not found at: $_FARM_SECRETS_FILE" >&2
-    echo "Copy secrets.example.sh to secrets.sh and fill in your values." >&2
+    echo "  ERROR: secrets.sh not found at: $_FARM_SECRETS_FILE" >&2
+    echo "  Copy secrets.example.sh to secrets.sh and fill it in." >&2
     exit 1
 fi
 source "$_FARM_SECRETS_FILE"
@@ -143,10 +143,13 @@ FARM_UI_256=0
 if [ "$(tput colors 2>/dev/null || echo 8)" -ge 256 ]; then
     FARM_UI_256=1
 fi
+FARM_UI_TC=0
+case "${COLORTERM:-}" in
+    truecolor|24bit) FARM_UI_TC=1 ;;
+esac
 
 if [ "$FARM_UI_UTF8" -eq 1 ]; then
     FARM_G_RULE='─'
-    FARM_G_PROMPT='╌'
     FARM_G_SECTION='▸'
     FARM_G_OK='✔'
     FARM_G_WARN='⚠'
@@ -164,7 +167,6 @@ if [ "$FARM_UI_UTF8" -eq 1 ]; then
     FARM_G_METER_OFF='░'
 else
     FARM_G_RULE='-'
-    FARM_G_PROMPT='-'
     FARM_G_SECTION='>'
     FARM_G_OK='[OK]'
     FARM_G_WARN='[!]'
@@ -182,31 +184,31 @@ else
     FARM_G_METER_OFF='.'
 fi
 
+# Palette: black & white plus ONE accent (#87d7ff); red/green are
+# reserved for failed/good status, warnings render bold.
 FARM_C_RESET='\033[0m'
-if [ "$FARM_UI_256" -eq 1 ]; then
-    FARM_C_TITLE='\033[1;38;5;81m'
-    FARM_C_SECTION='\033[38;5;75m'
-    FARM_C_RULE='\033[38;5;240m'
-    FARM_C_OK='\033[38;5;114m'
-    FARM_C_WARN='\033[38;5;214m'
-    FARM_C_ERR='\033[1;38;5;203m'
-    FARM_C_NODE='\033[38;5;81m'
-    FARM_C_DIM='\033[38;5;244m'
+if [ "$FARM_UI_TC" -eq 1 ]; then
+    FARM_C_ACCENT='\033[38;2;135;215;255m'
+elif [ "$FARM_UI_256" -eq 1 ]; then
+    FARM_C_ACCENT='\033[38;5;117m'
 else
-    FARM_C_TITLE='\033[1;36m'
-    FARM_C_SECTION='\033[1;34m'
-    FARM_C_RULE='\033[0;37m'
-    FARM_C_OK='\033[1;32m'
-    FARM_C_WARN='\033[1;33m'
-    FARM_C_ERR='\033[1;31m'
-    FARM_C_NODE='\033[1;36m'
-    FARM_C_DIM='\033[0;37m'
+    FARM_C_ACCENT='\033[94m'
 fi
-FARM_UI_WIDTH=60
+FARM_C_TITLE="\033[1m${FARM_C_ACCENT}"
+FARM_C_SECTION="$FARM_C_ACCENT"
+FARM_C_RULE='\033[2m'
+FARM_C_OK='\033[32m'
+FARM_C_WARN='\033[1m'
+FARM_C_ERR='\033[1;31m'
+FARM_C_NODE="$FARM_C_ACCENT"
+FARM_C_DIM='\033[2m'
+# 56 content cols + 2-space margins each side = the 60-col farm window.
+FARM_UI_WIDTH=56
 FARM_VERSION="${FARM_VERSION:-2.1}"
 
 farm_disable_colors() {
     FARM_C_RESET=''
+    FARM_C_ACCENT=''
     FARM_C_TITLE=''
     FARM_C_SECTION=''
     FARM_C_RULE=''
@@ -218,26 +220,17 @@ farm_disable_colors() {
 }
 
 farm_apply_random_header_theme() {
-    # One random accent per run; rules stay neutral so the accent carries
-    # the identity (title bold, section regular) instead of clashing colors.
-    # Set FARM_UI_ACCENT (a 256-color number) in config/secrets.sh to pin
-    # one accent instead. The chosen number is exported as
-    # FARM_UI_ACCENT_N for reuse (menu theme, tmux session styling).
+    # Fixed palette: the single UI accent (#87d7ff) carries the identity
+    # (title bold, section regular). Kept as a function so existing call
+    # sites (menu rebuilds) stay valid. FARM_UI_ACCENT_N is exported for
+    # reuse by the tmux session styling on 256-color terminals.
+    FARM_C_TITLE="\033[1m${FARM_C_ACCENT}"
+    FARM_C_SECTION="$FARM_C_ACCENT"
+    FARM_C_RULE='\033[2m'
     if [ "$FARM_UI_256" -eq 1 ]; then
-        local accents=(81 114 176 215 117 222 210)
-        local a="${accents[$RANDOM % ${#accents[@]}]}"
-        [[ "${FARM_UI_ACCENT:-}" =~ ^[0-9]+$ ]] && a="$FARM_UI_ACCENT"
-        FARM_UI_ACCENT_N="$a"
-        FARM_C_TITLE="\033[1;38;5;${a}m"
-        FARM_C_SECTION="\033[38;5;${a}m"
-        FARM_C_RULE='\033[38;5;240m'
+        FARM_UI_ACCENT_N="117"
     else
-        local accents=('36' '35' '33' '32')
-        local a="${accents[$RANDOM % ${#accents[@]}]}"
         FARM_UI_ACCENT_N=""
-        FARM_C_TITLE="\033[1;${a}m"
-        FARM_C_SECTION="\033[0;${a}m"
-        FARM_C_RULE='\033[0;37m'
     fi
 }
 
@@ -246,7 +239,7 @@ farm_apply_random_header_theme
 farm_print_rule() {
     local width="${1:-$FARM_UI_WIDTH}" line
     printf -v line "%${width}s" ""
-    echo -e "${FARM_C_RULE}${line// /$FARM_G_RULE}${FARM_C_RESET}"
+    echo -e "  ${FARM_C_RULE}${line// /$FARM_G_RULE}${FARM_C_RESET}"
 }
 
 farm_print_title() {
@@ -260,9 +253,9 @@ farm_print_title() {
     pad=$(( inner - ${#TEXT} - 3 ))
     (( pad < 0 )) && pad=0
     printf -v spaces "%${pad}s" ""
-    echo -e "${FARM_C_RULE}${FARM_G_TL}${line}${FARM_G_TR}${FARM_C_RESET}"
-    echo -e "${FARM_C_RULE}${FARM_G_VBAR}${FARM_C_RESET}  ${FARM_C_TITLE}${TEXT}${FARM_C_RESET}${spaces} ${FARM_C_RULE}${FARM_G_VBAR}${FARM_C_RESET}"
-    echo -e "${FARM_C_RULE}${FARM_G_BL}${line}${FARM_G_BR}${FARM_C_RESET}"
+    echo -e "  ${FARM_C_RULE}${FARM_G_TL}${line}${FARM_G_TR}${FARM_C_RESET}"
+    echo -e "  ${FARM_C_RULE}${FARM_G_VBAR}${FARM_C_RESET}  ${FARM_C_TITLE}${TEXT}${FARM_C_RESET}${spaces} ${FARM_C_RULE}${FARM_G_VBAR}${FARM_C_RESET}"
+    echo -e "  ${FARM_C_RULE}${FARM_G_BL}${line}${FARM_G_BR}${FARM_C_RESET}"
     echo ""
 }
 
@@ -292,9 +285,9 @@ farm_print_danger_box() {
     pad=$(( inner - ${#TEXT} - 4 - ${#FARM_G_WARN} ))
     (( pad < 0 )) && pad=0
     printf -v spaces "%${pad}s" ""
-    echo -e "${FARM_C_ERR}${FARM_G_TL}${line}${FARM_G_TR}${FARM_C_RESET}"
-    echo -e "${FARM_C_ERR}${FARM_G_VBAR}${FARM_C_RESET} ${FARM_C_WARN}${FARM_G_WARN}${FARM_C_RESET}  ${FARM_C_ERR}${TEXT}${FARM_C_RESET}${spaces} ${FARM_C_ERR}${FARM_G_VBAR}${FARM_C_RESET}"
-    echo -e "${FARM_C_ERR}${FARM_G_BL}${line}${FARM_G_BR}${FARM_C_RESET}"
+    echo -e "  ${FARM_C_ERR}${FARM_G_TL}${line}${FARM_G_TR}${FARM_C_RESET}"
+    echo -e "  ${FARM_C_ERR}${FARM_G_VBAR}${FARM_C_RESET} ${FARM_C_WARN}${FARM_G_WARN}${FARM_C_RESET}  ${FARM_C_ERR}${TEXT}${FARM_C_RESET}${spaces} ${FARM_C_ERR}${FARM_G_VBAR}${FARM_C_RESET}"
+    echo -e "  ${FARM_C_ERR}${FARM_G_BL}${line}${FARM_G_BR}${FARM_C_RESET}"
 }
 
 # One-line boxed end-of-run summary, e.g.:
@@ -310,15 +303,15 @@ farm_print_summary() {
     pad=$(( inner - ${#TEXT} - 4 - ${#FARM_G_OK} ))
     (( pad < 0 )) && pad=0
     printf -v spaces "%${pad}s" ""
-    echo -e "${FARM_C_RULE}${FARM_G_TL}${line}${FARM_G_TR}${FARM_C_RESET}"
-    echo -e "${FARM_C_RULE}${FARM_G_VBAR}${FARM_C_RESET} ${FARM_C_OK}${FARM_G_OK}${FARM_C_RESET}  ${TEXT}${spaces} ${FARM_C_RULE}${FARM_G_VBAR}${FARM_C_RESET}"
-    echo -e "${FARM_C_RULE}${FARM_G_BL}${line}${FARM_G_BR}${FARM_C_RESET}"
+    echo -e "  ${FARM_C_RULE}${FARM_G_TL}${line}${FARM_G_TR}${FARM_C_RESET}"
+    echo -e "  ${FARM_C_RULE}${FARM_G_VBAR}${FARM_C_RESET} ${FARM_C_OK}${FARM_G_OK}${FARM_C_RESET}  ${TEXT}${spaces} ${FARM_C_RULE}${FARM_G_VBAR}${FARM_C_RESET}"
+    echo -e "  ${FARM_C_RULE}${FARM_G_BL}${line}${FARM_G_BR}${FARM_C_RESET}"
 }
 
 farm_print_section() {
     local TEXT
     TEXT=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
-    echo -e "${FARM_C_SECTION}${FARM_G_SECTION} ${TEXT}${FARM_C_RESET}"
+    echo -e "  ${FARM_C_SECTION}${FARM_G_SECTION} ${TEXT}${FARM_C_RESET}"
     echo ""
 }
 
@@ -339,6 +332,20 @@ farm_spin_start() {
     if [ ! -t 1 ]; then
         echo "  $label"
         return 0
+    fi
+    # Truncate so prefix + label + elapsed suffix never wrap: a wrapped
+    # spinner line breaks the \r redraw and spams new lines.
+    local cols max
+    cols=$(tput cols 2>/dev/null)
+    [[ "$cols" =~ ^[0-9]+$ ]] || cols="${COLUMNS:-60}"
+    max=$(( cols - 12 ))
+    (( max < 10 )) && max=10
+    if [ "${#label}" -gt "$max" ]; then
+        if [ "$FARM_UI_UTF8" -eq 1 ]; then
+            label="${label:0:max-1}…"
+        else
+            label="${label:0:max-3}..."
+        fi
     fi
     tput civis 2>/dev/null
     (
@@ -370,15 +377,15 @@ farm_spin_stop() {
 }
 
 farm_print_ok() {
-    echo -e "${FARM_C_OK}${FARM_G_OK} $*${FARM_C_RESET}"
+    echo -e "  ${FARM_C_OK}${FARM_G_OK} $*${FARM_C_RESET}"
 }
 
 farm_print_warn() {
-    echo -e "${FARM_C_WARN}${FARM_G_WARN} $*${FARM_C_RESET}"
+    echo -e "  ${FARM_C_WARN}${FARM_G_WARN} $*${FARM_C_RESET}"
 }
 
 farm_print_error() {
-    echo -e "${FARM_C_ERR}${FARM_G_ERR} $*${FARM_C_RESET}"
+    echo -e "  ${FARM_C_ERR}${FARM_G_ERR} $*${FARM_C_RESET}"
 }
 
 farm_require_cmd() {
@@ -398,10 +405,48 @@ farm_require_bash4() {
     local context="${1:-this script}"
     if [ "${BASH_VERSINFO[0]:-0}" -lt 4 ]; then
         farm_print_error "$context requires Bash 4+."
-        echo "Current bash: ${BASH_VERSION:-unknown}"
-        echo "Tip: run on Linux host or newer bash."
+        echo "  Current bash: ${BASH_VERSION:-unknown}"
+        echo "  Tip: run on Linux host or newer bash."
         exit 1
     fi
+}
+
+# Indent streamed output from external commands (installers, dpkg)
+# to the UI's 2-space margin:  cmd 2>&1 | farm_indent
+# Keep the real exit code via ${PIPESTATUS[0]}.
+farm_indent() {
+    sed -u 's/^/  /'
+}
+
+# Pre-authenticate sudo with the UI's 2-space margin. sudo's own
+# messages ("Sorry, try again.") print at column 0 and cannot be
+# styled, so the password is read here and fed to sudo -S while its
+# output is suppressed; all user-visible lines are ours.
+farm_sudo_auth() {
+    # Cached credential or NOPASSWD: nothing to ask.
+    sudo -n -v 2>/dev/null && return 0
+    # No tty to prompt on: fall back to plain sudo (styled prompt only).
+    if [ ! -r /dev/tty ]; then
+        sudo -v -p "  [sudo] password for %p: "
+        return $?
+    fi
+    local pw tries=0
+    while [ "$tries" -lt 3 ]; do
+        if ! IFS= read -r -s -p "  [sudo] password for $USER: " pw < /dev/tty; then
+            printf '\n'
+            return 1
+        fi
+        printf '\n'
+        if printf '%s\n' "$pw" | sudo -S -v -p '' 2>/dev/null; then
+            pw=""
+            return 0
+        fi
+        pw=""
+        tries=$(( tries + 1 ))
+        [ "$tries" -lt 3 ] && echo "  Sorry, try again."
+    done
+    echo "  sudo: 3 incorrect password attempts"
+    return 1
 }
 
 farm_ssh() {
@@ -433,17 +478,13 @@ farm_die_unknown_option() {
 }
 
 farm_prompt_rule() {
-    local width="${1:-60}" line
-    # Pattern substitution instead of tr: tr can't emit multibyte glyphs.
-    printf -v line "%${width}s" ""
-    echo ""
-    echo -e "${FARM_C_DIM}${line// /$FARM_G_PROMPT}${FARM_C_RESET}"
+    # Prompts get breathing room, not a dashed rule (visual noise).
     echo ""
 }
 
 farm_prompt_heading() {
     local text="$1"
-    echo -e "${FARM_C_WARN}${text}${FARM_C_RESET}"
+    echo -e "  ${FARM_C_WARN}${text}${FARM_C_RESET}"
 }
 
 farm_prompt_local_choice() {
@@ -461,12 +502,12 @@ farm_prompt_local_choice() {
         FARM_LOCAL_CHOICE="$auto_yes_default"
     else
         farm_prompt_heading "$prompt"
-        echo "(press q to cancel)"
+        echo "  (press q to cancel)"
         farm_prompt_rule
-        read -n 1 -r -p "> " FARM_LOCAL_CHOICE
+        read -n 1 -r -p "  > " FARM_LOCAL_CHOICE
         echo ""
         if [[ "$FARM_LOCAL_CHOICE" == "q" || "$FARM_LOCAL_CHOICE" == "Q" ]]; then
-            echo "Aborted."
+            echo "  Aborted."
             exit 0
         fi
     fi
@@ -475,11 +516,11 @@ farm_prompt_local_choice() {
 prompt_inline_yn_with_cancel() {
     local prompt_text="$1"
     local answer
-    printf "%s (y/n)? " "$prompt_text"
+    printf "  %s (y/n)? " "$prompt_text"
     read -n 1 -s -r answer
     echo "$answer"
     if [[ "$answer" == "q" || "$answer" == "Q" ]]; then
-        echo "Aborted."
+        echo "  Aborted."
         exit 0
     fi
     FARM_PROMPT_ANSWER="$answer"
@@ -495,7 +536,7 @@ farm_confirm_yn() {
         reply="y"
     else
         farm_prompt_rule
-        read -n 1 -r -p "$prompt" reply
+        read -n 1 -r -p "  $prompt" reply
         echo ""
     fi
 
@@ -517,7 +558,7 @@ farm_confirm_yn() {
 farm_press_any_or_q() {
     local prompt="$1"
     farm_prompt_rule
-    echo "$prompt"
+    echo "  $prompt"
     read -n 1 -s key
     if [[ "$key" == "q" || "$key" == "Q" ]]; then
         return 1
@@ -536,10 +577,10 @@ farm_countdown_with_pause() {
         secs=$((total_seconds % 60))
 
         if [[ "$is_paused" -eq 1 ]]; then
-            printf "\r%s %02d:%02d [PAUSED] (any key to resume, q=cancel) " \
+            printf "\r  %s %02d:%02d [PAUSED] (any key to resume, q=cancel) " \
                 "$label" "$mins" "$secs"
         else
-            printf "\r%s %02d:%02d (any key to pause, q=cancel)          " \
+            printf "\r  %s %02d:%02d (any key to pause, q=cancel)          " \
                 "$label" "$mins" "$secs"
         fi
 
@@ -567,7 +608,7 @@ farm_countdown_with_pause() {
 farm_print_node_summary_line() {
     local node="$1"
     local message="$2"
-    echo " $(farm_color_node_name "$node"): $message"
+    echo "  $(farm_color_node_name "$node"): $message"
 }
 
 farm_color_node_name() {
@@ -685,16 +726,16 @@ farm_get_windows_tasks() {
 print_windows_tasks() {
     local NAME=$1
 
-    farm_spin_start "checking Windows tasks on $NAME (Premiere, Illustrator, Photoshop, AE, Reaper)"
+    farm_spin_start "checking Windows tasks on $NAME"
     TASKS=$(farm_get_windows_tasks "$NAME")
     farm_spin_stop
 
     if [ -z "$TASKS" ]; then
-        echo "$(farm_node_tag "$NAME") no important Windows tasks running."
+        echo "  $(farm_node_tag "$NAME") no important Windows tasks running."
     else
-        echo "$(farm_node_tag "$NAME") important Windows tasks running:"
+        echo "  $(farm_node_tag "$NAME") important Windows tasks running:"
         echo "$TASKS" | while read -r TASK; do
-            [ -n "$TASK" ] && echo "  - $TASK"
+            [ -n "$TASK" ] && echo "    - $TASK"
         done
     fi
 }
@@ -855,33 +896,33 @@ farm_tmux_print_cheatsheet() {
     echo -e "${FARM_C_TITLE}        TMUX FARM CONTROL - CHEAT SHEET${FARM_C_RESET}"
     farm_print_rule
     echo ""
-    echo -e "\e[1;33mSYNC MODE  (Prefix = Ctrl+b)\e[0m"
-    echo -e "  \e[1;35mPrefix + y\e[0m   Toggle sync on/off"
+    echo -e "  ${FARM_C_SECTION}SYNC MODE  (Prefix = Ctrl+b)${FARM_C_RESET}"
+    echo -e "  ${FARM_C_TITLE}Prefix + y${FARM_C_RESET}   Toggle sync on/off"
     echo -e "  \e[1;31mRED bar\e[0m      Sync ON  - sends to ALL nodes"
     echo -e "  \e[1;32mGREEN bar\e[0m    Sync OFF - focused pane only"
     echo ""
-    echo -e "\e[1;33mPANE CONTROL\e[0m"
-    echo -e "  \e[1;35mPrefix + Arrows\e[0m  Move between panes"
-    echo -e "  \e[1;35mPrefix + z\e[0m       Zoom/unzoom pane"
-    echo -e "  \e[1;35mPrefix + H/J/K/L\e[0m Resize pane"
-    echo -e "  \e[1;35mMouse drag\e[0m        Resize pane"
-    echo -e "  \e[1;35mPrefix + q\e[0m       Show pane numbers"
-    echo -e "  \e[1;35mPrefix + {\e[0m       Swap pane up"
-    echo -e "  \e[1;35mPrefix + }\e[0m       Swap pane down"
+    echo -e "  ${FARM_C_SECTION}PANE CONTROL${FARM_C_RESET}"
+    echo -e "  ${FARM_C_TITLE}Prefix + Arrows${FARM_C_RESET}  Move between panes"
+    echo -e "  ${FARM_C_TITLE}Prefix + z${FARM_C_RESET}       Zoom/unzoom pane"
+    echo -e "  ${FARM_C_TITLE}Prefix + H/J/K/L${FARM_C_RESET} Resize pane"
+    echo -e "  ${FARM_C_TITLE}Mouse drag${FARM_C_RESET}        Resize pane"
+    echo -e "  ${FARM_C_TITLE}Prefix + q${FARM_C_RESET}       Show pane numbers"
+    echo -e "  ${FARM_C_TITLE}Prefix + {${FARM_C_RESET}       Swap pane up"
+    echo -e "  ${FARM_C_TITLE}Prefix + }${FARM_C_RESET}       Swap pane down"
     echo ""
-    echo -e "\e[1;33mSCROLL & COPY\e[0m"
-    echo -e "  \e[1;35mPrefix + [\e[0m       Enter scroll mode"
-    echo -e "  \e[1;37mq\e[0m                Exit scroll mode"
-    echo -e "  \e[1;35mPrefix + PgUp\e[0m    Scroll up one page"
+    echo -e "  ${FARM_C_SECTION}SCROLL & COPY${FARM_C_RESET}"
+    echo -e "  ${FARM_C_TITLE}Prefix + [${FARM_C_RESET}       Enter scroll mode"
+    echo -e "  \e[1mq\e[0m                Exit scroll mode"
+    echo -e "  ${FARM_C_TITLE}Prefix + PgUp${FARM_C_RESET}    Scroll up one page"
     echo ""
-    echo -e "\e[1;33mSESSION\e[0m"
-    echo -e "  \e[1;35mPrefix + d\e[0m       Detach (nodes keep running)"
-    echo -e "  \e[1;37mexit\e[0m             Close a single pane"
-    echo -e "  \e[1;37mtmux ls\e[0m          List running sessions"
+    echo -e "  ${FARM_C_SECTION}SESSION${FARM_C_RESET}"
+    echo -e "  ${FARM_C_TITLE}Prefix + d${FARM_C_RESET}       Detach (nodes keep running)"
+    echo -e "  \e[1mexit\e[0m             Close a single pane"
+    echo -e "  \e[1mtmux ls\e[0m          List running sessions"
     echo ""
 
     if [ -n "$FARM_WINDOWS_EXCLUDED" ]; then
-        echo -e "\e[1;33mWINDOWS CLIENTS (excluded from tmux)\e[0m"
+        echo -e "  ${FARM_C_SECTION}WINDOWS CLIENTS (excluded from tmux)${FARM_C_RESET}"
         for node in $FARM_WINDOWS_EXCLUDED; do
             echo -e "  - $node"
         done
@@ -959,7 +1000,7 @@ farm_launch_terminal() {
     # Linux behavior: prefer gnome-terminal when GUI is available.
     # Headless/no-display fallback: attach in current terminal.
     if [[ -z "${DISPLAY:-}" ]] || ! command -v gnome-terminal >/dev/null 2>&1; then
-        echo "No GUI display/gnome-terminal detected. Attaching tmux in current terminal..."
+        echo "  No GUI terminal - attaching tmux here..."
         tmux attach-session -t "$SESSION"
         return 0
     fi

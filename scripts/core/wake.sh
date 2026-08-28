@@ -1,9 +1,9 @@
 #!/bin/bash
-#       _____                          __
-#      / ___/__ ___ ____ ___  ___ ____/ /  __ _____ ___
-#     / (_ / -_) _ `/ -_) _ \(_-</ __/ _ \/ // (_-<(_-<
-#     \___/\__/\_, /\__/_//_/___/\__/_//_/\_,_/___/___/
-#             /___/
+#  _____                         _
+# |   __|___ ___ ___ ___ ___ ___| |_ _ _ ___ ___
+# |  |  | -_| . | -_|   |_ -|  _|   | | |_ -|_ -|
+# |_____|___|_  |___|_|_|___|___|_|_|___|___|___|
+#           |___|
 #
 cd "$(dirname "$0")"
 source ../lib/config.sh
@@ -48,7 +48,7 @@ Examples:
   ./wake.sh --yes --dry-run
 EOF
     echo ""
-    echo "Silent mode example:"
+    echo "  Silent mode example:"
     echo "  $script_path --silent --prejob-wait=45"
     echo "  $script_path --silent-strict --prejob-wait=60"
 }
@@ -113,15 +113,15 @@ if [ "$PREJOB_MODE" -eq 1 ]; then
         PREJOB_LOG_FILE="${FARM_PREJOB_LOG_FILE:-/tmp/farm_wake_prejob.log}"
     fi
     exec > >(tee -a "$PREJOB_LOG_FILE") 2>&1
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Pre-job mode started."
-    echo "Log file: $PREJOB_LOG_FILE"
+    echo "  [$(date '+%Y-%m-%d %H:%M:%S')] Pre-job mode started."
+    echo "  Log file: $PREJOB_LOG_FILE"
     if [ "$DEADLINE_PREJOB" -eq 1 ]; then
-        echo "Policy: silent mode (skip all nodes currently on Windows; no user interaction)."
+        echo "  Policy: silent mode (skip all nodes currently on Windows; no user interaction)."
     fi
     if [ "$DEADLINE_STRICT" -eq 1 ]; then
-        echo "Readiness mode: strict (all targeted nodes must respond)."
+        echo "  Readiness mode: strict (all targeted nodes must respond)."
     else
-        echo "Readiness mode: first-response (any target node response is success)."
+        echo "  Readiness mode: first-response (any target node response is success)."
     fi
     echo ""
 fi
@@ -129,7 +129,6 @@ fi
 if [ "$PREJOB_MODE" -eq 0 ]; then
     "$FARM_SCRIPTS_DIR/lib/header.sh"
 fi
-echo ""
 
 # === MAIN SCRIPT START ===
 # --- CONFIGURATION ---
@@ -169,7 +168,7 @@ trigger_dualboot_reboot_to_linux() {
     local bios_guid="$2"
 
     if [ "$LIVE_TABLE_MODE" -eq 0 ]; then
-        echo "$(farm_node_tag "$target_node") sending reboot-to-Linux command (non-interactive)..."
+        echo "  $(farm_node_tag "$target_node") sending reboot-to-Linux command (non-interactive)..."
     fi
     if [ "$LIVE_TABLE_MODE" -eq 1 ] && [ "$DRY_RUN" -eq 0 ]; then
         farm_ssh "${target_node}-win" \
@@ -184,12 +183,12 @@ trigger_dualboot_reboot_to_linux() {
 
 print_plain_subheading() {
     local text="$1"
-    echo "$text"
+    echo "  $text"
     echo ""
 }
 
 print_colored_node_inventory() {
-    echo "Configured nodes:"
+    echo "  Configured nodes:"
     for node in "${NODES[@]}"; do
         if farm_is_dual_boot_node "$node"; then
             printf "  ${FARM_C_NODE}%s${FARM_C_RESET} (%s)\n" "$node" "dual-boot"
@@ -246,22 +245,24 @@ for NODE_DEF in "${DUAL_BOOT_NODES[@]}"; do
 done
 
 # Wait for all checks
+farm_spin_start "checking node status (ping + dual-boot ssh)"
 for _pid in "${_linux_pids[@]}" "${_db_pids[@]}"; do
     wait "$_pid" 2>/dev/null
 done
+farm_spin_stop
 
 # --- LINUX NODES: collect results ---
 for NODE in "${_linux_nodes[@]}"; do
     _result=$(cat "$_precheck_tmp/linux_${NODE}.out" 2>/dev/null)
     if [ "$_result" = "online" ]; then
         if [ "$LIVE_TABLE_MODE" -eq 0 ]; then
-            echo "$(farm_node_tag "$NODE") already online - skipping WOL"
+            echo "  $(farm_node_tag "$NODE") already online - skipping WOL"
         fi
         LINUX_STATUS[$NODE]="online"
         WAKE_NODE_SUMMARY[$NODE]="already online - WOL skipped"
     else
         if [ "$LIVE_TABLE_MODE" -eq 0 ]; then
-            echo "$(farm_node_tag "$NODE") offline - sending WOL..."
+            echo "  $(farm_node_tag "$NODE") offline - sending WOL..."
         fi
         LINUX_STATUS[$NODE]="offline"
         if send_wol_for_node "$NODE"; then
@@ -367,7 +368,7 @@ fi
 
 if [ "$PREJOB_MODE" -eq 1 ]; then
     print_plain_subheading "Pre-job readiness check"
-    echo "Polling up to ${PREJOB_WAIT_SECONDS}s for node response..."
+    echo "  Polling up to ${PREJOB_WAIT_SECONDS}s for node response..."
 
     ELAPSED=0
     TARGET_COUNT=0
@@ -540,7 +541,7 @@ fi
 
 if [ "$USE_TMUX_MONITOR" -eq 1 ]; then
     print_plain_subheading "Launch monitor"
-    echo "Starting tmux monitor..."
+    echo "  Starting tmux monitor..."
     echo ""
 fi
 
@@ -581,7 +582,7 @@ if [ "$USE_TMUX_MONITOR" -eq 0 ]; then
         if [ "${#text}" -gt "$max_len" ]; then
             text="${text:0:$((max_len - 3))}..."
         fi
-        echo "$text"
+        echo "  $text"
     }
 
     truncate_live_text() {
@@ -632,7 +633,7 @@ if [ "$USE_TMUX_MONITOR" -eq 0 ]; then
                 if [ "$STATUS" -eq 0 ] || [ "$STATUS" -eq 1 ]; then
                     DUALBOOT_SCRIPT=$(make_dualboot_script "$NAME" "$BIOS_GUID" "$LINUX_WAIT" "$STATUS")
                     TMPFILE=$(mktemp /tmp/dualboot_${NAME}_XXXXXX.sh)
-                    echo "$DUALBOOT_SCRIPT" > "$TMPFILE"
+                    echo "  $DUALBOOT_SCRIPT" > "$TMPFILE"
                     chmod +x "$TMPFILE"
                     JOB_CMDS[$idx]="bash \"$TMPFILE\"; rm -f \"$TMPFILE\""
                 fi
@@ -645,7 +646,7 @@ if [ "$USE_TMUX_MONITOR" -eq 0 ]; then
         fi
     done
 
-    echo "Wake node status (live):"
+    echo "  Wake node status (live):"
     echo ""
     tmp_status_dir=$(mktemp -d)
     for idx in "${!JOB_NODES[@]}"; do
@@ -780,7 +781,7 @@ EOF
         STATUS=${DUALBOOT_STATUS[$NAME]}
         DUALBOOT_SCRIPT=$(make_dualboot_script "$NAME" "$BIOS_GUID" "$LINUX_WAIT" "$STATUS")
         TMPFILE=$(mktemp /tmp/dualboot_${NAME}_XXXXXX.sh)
-        echo "$DUALBOOT_SCRIPT" > "$TMPFILE"
+        echo "  $DUALBOOT_SCRIPT" > "$TMPFILE"
         chmod +x "$TMPFILE"
         farm_tmux_add_pane \
             "$SESSION" \

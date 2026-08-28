@@ -1,9 +1,9 @@
 #!/bin/bash
-#       _____                          __
-#      / ___/__ ___ ____ ___  ___ ____/ /  __ _____ ___
-#     / (_ / -_) _ `/ -_) _ \(_-</ __/ _ \/ // (_-<(_-<
-#     \___/\__/\_, /\__/_//_/___/\__/_//_/\_,_/___/___/
-#             /___/
+#  _____                         _
+# |   __|___ ___ ___ ___ ___ ___| |_ _ _ ___ ___
+# |  |  | -_| . | -_|   |_ -|  _|   | | |_ -|_ -|
+# |_____|___|_  |___|_|_|___|___|_|_|___|___|___|
+#           |___|
 #
 # ============================================
 #   remote menu - LOCAL SECRETS (TEMPLATE)
@@ -11,12 +11,6 @@
 #   in your values. secrets.sh is excluded
 #   from version control via .gitignore.
 # ============================================
-
-# --- UI Accent (optional) ---
-# Pin one 256-color accent for the menu instead of a random pick per
-# run (e.g. 81=sky, 114=green, 176=orchid, 215=peach, 222=cream).
-# Leave empty for a random accent every time.
-FARM_UI_ACCENT=""
 
 # --- Deadline Server ---
 DEADLINE_USER="deadline"

@@ -1,9 +1,9 @@
 #!/bin/bash
-#       _____                          __
-#      / ___/__ ___ ____ ___  ___ ____/ /  __ _____ ___
-#     / (_ / -_) _ `/ -_) _ \(_-</ __/ _ \/ // (_-<(_-<
-#     \___/\__/\_, /\__/_//_/___/\__/_//_/\_,_/___/___/
-#             /___/
+#  _____                         _
+# |   __|___ ___ ___ ___ ___ ___| |_ _ _ ___ ___
+# |  |  | -_| . | -_|   |_ -|  _|   | | |_ -|_ -|
+# |_____|___|_  |___|_|_|___|___|_|_|___|___|___|
+#           |___|
 #
 #SET CUSTOM SHORTCUT:
 #gnome-terminal --window --profile="farm" -- bash -ic "farm; exit"
@@ -24,7 +24,7 @@ cd "$(dirname "$0")"
 source ./scripts/lib/config.sh
 farm_require_bash4 "farm_control"
 
-trap 'clear; tput cnorm; echo -e "\n${GREEN}Exiting Farm Control.${NC}"; exit 0' SIGINT SIGTERM
+trap 'clear; tput cnorm; echo -e "\n  ${GREEN}Exiting Farm Control.${NC}"; exit 0' SIGINT SIGTERM
 trap 'tput cnorm' ERR
 trap 'handle_sigusr1' SIGUSR1
 
@@ -37,24 +37,23 @@ YELLOW="$FARM_C_WARN"
 DIM="$FARM_C_DIM"
 
 function apply_random_menu_theme() {
-    # One soft accent per menu build drives the shortcut keys, section
-    # headers, selection bar and footer; classic ANSI fallback on
-    # terminals without 256-color support.
-    if [ "${FARM_UI_256:-0}" -eq 1 ]; then
-        local accents=(81 114 176 215 117 222)
-        local a="${accents[$RANDOM % ${#accents[@]}]}"
-        # Pinned accent from config/secrets.sh wins over the random pick.
-        [[ "${FARM_UI_ACCENT:-}" =~ ^[0-9]+$ ]] && a="$FARM_UI_ACCENT"
-        CYAN="\033[38;5;${a}m"
-        KEY_C="\033[1;38;5;${a}m"
-        # Selection bar: accent background, near-black bold text.
-        SEL_ON="\033[48;5;${a}m\033[38;5;235m\033[1m"
-    else
-        local accents=('0;36' '1;34' '1;35' '1;33')
-        local a="${accents[$RANDOM % ${#accents[@]}]}"
-        CYAN="\033[${a}m"
+    # Fixed palette: the single UI accent (#87d7ff) drives the shortcut
+    # keys, section headers, selection bar and footer; 256-color and
+    # classic ANSI fallbacks. Kept as a function so menu rebuilds stay
+    # valid call sites.
+    if [ "${FARM_UI_TC:-0}" -eq 1 ]; then
+        CYAN='\033[38;2;135;215;255m'
         KEY_C="\033[1m${CYAN}"
-        SEL_ON="\033[7m\033[1m"
+        # Selection bar: accent background, near-black bold text.
+        SEL_ON='\033[48;2;135;215;255m\033[38;2;20;20;20m\033[1m'
+    elif [ "${FARM_UI_256:-0}" -eq 1 ]; then
+        CYAN='\033[38;5;117m'
+        KEY_C="\033[1m${CYAN}"
+        SEL_ON='\033[48;5;117m\033[38;5;235m\033[1m'
+    else
+        CYAN='\033[94m'
+        KEY_C="\033[1m${CYAN}"
+        SEL_ON='\033[7m\033[1m'
     fi
 }
 
@@ -82,7 +81,7 @@ function set_terminal_title() {
 function exit_farm_control() {
     clear
     tput cnorm
-    printf "\n${GREEN}Exiting Farm Control.${NC}\n"
+    printf "\n  ${GREEN}Exiting Farm Control.${NC}\n"
     # Over SSH, close the interactive parent shell too ("double exit").
     if [[ -n "${SSH_CONNECTION:-}" && -n "${PPID:-}" ]]; then
         kill -HUP "$PPID" >/dev/null 2>&1 || true
@@ -156,9 +155,8 @@ function print_sel_right() {  # $1=lcolored $2=spaces $3=rplain
 # red for exit.
 function key_color() {
     case "$1" in
-        r|R|s|S|c) printf '%s' "${BOLD}${YELLOW}" ;;
-        q)         printf '%s' "${BOLD}${RED}" ;;
-        *)         printf '%s' "$KEY_C" ;;
+        r|R|s|S|c|q|1|O) printf '%s' "${BOLD}${RED}" ;;
+        *)           printf '%s' "$KEY_C" ;;
     esac
 }
 
@@ -529,8 +527,7 @@ function build_menu() {
 
     MENU_ENTRIES+=( "HEADER|farm install" )
     make_line "1" "Houdini"    ; MENU_ENTRIES+=( "ITEM|1|${PLAIN_OUT}|${COLOR_OUT}|install_houdini" )
-    make_line "2" "Deadline"   ; MENU_ENTRIES+=( "ITEM|2|${PLAIN_OUT}|${COLOR_OUT}|install_deadline" )
-    make_line "3" "Houdini License" ; MENU_ENTRIES+=( "ITEM|3|${PLAIN_OUT}|${COLOR_OUT}|license_houdini" )
+    make_line "2" "Houdini License" ; MENU_ENTRIES+=( "ITEM|2|${PLAIN_OUT}|${COLOR_OUT}|license_houdini" )
 
     MENU_ENTRIES+=( "HEADER|workstation scripts" )
     make_line "c" "Cache"                 ; MENU_ENTRIES+=( "ITEM|c|${PLAIN_OUT}|${COLOR_OUT}|cache" )
@@ -538,11 +535,12 @@ function build_menu() {
 
     MENU_ENTRIES+=( "HEADER|start applications" )
     make_line "h" "Houdini"                    ; MENU_ENTRIES+=( "ITEM|h|${PLAIN_OUT}|${COLOR_OUT}|houdini" )
-    make_line "n" "Nuke"                       ; MENU_ENTRIES+=( "ITEM|n|${PLAIN_OUT}|${COLOR_OUT}|nuke" )
+    add_pair "n" "Nuke"             "nuke"             "N" "+Update"       "nuke_update"
     make_line "e" "SynthEyes"                  ; MENU_ENTRIES+=( "ITEM|e|${PLAIN_OUT}|${COLOR_OUT}|syntheyes" )
-    make_line "m" "Mocha"                      ; MENU_ENTRIES+=( "ITEM|m|${PLAIN_OUT}|${COLOR_OUT}|mocha" )
-    make_line "b" "Blender"                    ; MENU_ENTRIES+=( "ITEM|b|${PLAIN_OUT}|${COLOR_OUT}|blender" )
-    make_line "d" "Davinci"                    ; MENU_ENTRIES+=( "ITEM|d|${PLAIN_OUT}|${COLOR_OUT}|davinci" )
+    add_pair "m" "Mocha"            "mocha"            "M" "+Update"       "mocha_import"
+    add_pair "b" "Blender"          "blender"          "B" "+Update"       "blender_update"
+    add_pair "d" "Davinci"          "davinci"          "D" "+Update"       "resolve_update"
+    add_pair "o" "Deadline Monitor" "deadline_monitor" "O" "+Farm Install" "install_deadline"
 
     MENU_ENTRIES+=( "HEADER|" )
     make_line "?" "Help" ""
@@ -772,7 +770,7 @@ function deadline_power() {
     local state=$1
     local script="$FARM_BASE_DIR/deadline/power_${state}.py"
     [ ! -f "$script" ] && \
-        printf "${RED}Script not found: $script${NC}\n" && \
+        printf "  ${RED}Script not found: $script${NC}\n" && \
         return 1
     "$DEADLINECOMMAND" ExecuteScriptNoGui "$script" \
         > /dev/null 2>&1
@@ -788,11 +786,11 @@ function confirm_danger() {
         confirm
     tput civis
     if [[ "$confirm" == "q" || "$confirm" == "Q" ]]; then
-        printf "\n${YELLOW}Action cancelled.${NC}\n"
+        printf "\n  ${YELLOW}Action cancelled.${NC}\n"
         return 1
     fi
     [[ "$confirm" =~ ^[Yy]$ ]] && printf "\n" && return 0
-    printf "\n${YELLOW}Action cancelled.${NC}\n"
+    printf "\n  ${YELLOW}Action cancelled.${NC}\n"
     return 1
 }
 
@@ -815,35 +813,35 @@ function run_action() {
             return 1 ;;
         wake)
             set_terminal_title "Farm: Wake"
-            printf "\n${GREEN}Waking up Farm...${NC}\n"
+            printf "\n  ${GREEN}Waking up Farm...${NC}\n"
             $SCRIPTS/core/wake.sh ;;
         status)
             set_terminal_title "Farm: Status"
-            printf "\n${CYAN}Checking Farm Status...${NC}\n"
+            printf "\n  ${CYAN}Checking Farm Status...${NC}\n"
             $SCRIPTS/core/status.sh ;;
         nvtop)
             set_terminal_title "Farm: NVTop"
-            printf "\n${CYAN}Starting NVTop...${NC}\n"
+            printf "\n  ${CYAN}Starting NVTop...${NC}\n"
             $SCRIPTS/core/node_session.sh nvtop
             return 1 ;;
         nvtop_local)
             set_terminal_title "Farm: NVTop + Workstation"
-            printf "\n${CYAN}Starting NVTop + Workstation...${NC}\n"
+            printf "\n  ${CYAN}Starting NVTop + Workstation...${NC}\n"
             $SCRIPTS/core/node_session.sh nvtop --local
             return 1 ;;
         control)
             set_terminal_title "Farm: Control"
-            printf "\n${CYAN}Opening Control...${NC}\n"
+            printf "\n  ${CYAN}Opening Control...${NC}\n"
             $SCRIPTS/core/node_session.sh control
             return 1 ;;
         control_local)
             set_terminal_title "Farm: Control + Workstation"
-            printf "\n${CYAN}Opening Control + Workstation...${NC}\n"
+            printf "\n  ${CYAN}Opening Control + Workstation...${NC}\n"
             $SCRIPTS/core/node_session.sh control --local
             return 1 ;;
         help)
             set_terminal_title "Farm: Help"
-            printf "\n${CYAN}Opening Farm Help...${NC}\n"
+            printf "\n  ${CYAN}Opening Farm Help...${NC}\n"
             $SCRIPTS/lib/help.sh ;;
         update)
             set_terminal_title "Farm: Update"
@@ -875,15 +873,28 @@ function run_action() {
         install_deadline)
             confirm_danger "INSTALL DEADLINE ON FARM" && \
             $SCRIPTS/tools/install_app.sh deadline ;;
+        blender_update)
+            set_terminal_title "Farm: Blender Update"
+            $SCRIPTS/tools/update_blender.sh ;;
+        resolve_update)
+            set_terminal_title "Farm: Resolve Update"
+            $SCRIPTS/tools/update_resolve.sh ;;
+        nuke_update)
+            set_terminal_title "Farm: Nuke Update"
+            $SCRIPTS/tools/update_nuke.sh ;;
+        mocha_import)
+            set_terminal_title "Farm: Mocha Import"
+            $SCRIPTS/tools/import_mocha.sh ;;
         license_houdini)
             set_terminal_title "Farm: Houdini License"
             $SCRIPTS/tools/license_houdini.sh ;;
         cache)
             confirm_danger "DELETE ${FARM_LOCAL_NAME} CACHE" && \
+            farm_sudo_auth && \
             sudo $SCRIPTS/tools/delcache.sh ;;
         selftest)
             set_terminal_title "Farm: Selftest"
-            printf "\n${CYAN}Running farm deep selftest...${NC}\n"
+            printf "\n  ${CYAN}Running farm deep selftest...${NC}\n"
             $SCRIPTS/tools/selftest.sh ;;
         houdini)
             set_terminal_title "Houdini"
@@ -908,19 +919,29 @@ function run_action() {
             clear
             set_window_size "$APP_WINDOW_SIZE"
             minimize_after 5
-            /opt/BorisFX/MochaPro2026/bin/mochapro2026 --verbose ;;
+            # Newest installed Mocha version (imports install in parallel).
+            local mocha_dir mocha_bin
+            mocha_dir=$(ls -1d /opt/BorisFX/MochaPro* 2>/dev/null | sort -V | tail -n 1)
+            mocha_bin=$(find "$mocha_dir" -maxdepth 2 -path '*/bin/mochapro*' -type f 2>/dev/null | head -n 1)
+            "$mocha_bin" --verbose ;;
         blender)
             set_terminal_title "Blender"
             clear
             set_window_size "$APP_WINDOW_SIZE"
             minimize_after 5
-            /opt/blender/blender --debug-python "$@" ;;
+            /opt/blender/blender --debug-python ;;
         davinci)
             set_terminal_title "Davinci"
             clear
             set_window_size "$APP_WINDOW_SIZE"
             minimize_after 5
             /opt/resolve/bin/resolve ;;
+        deadline_monitor)
+            set_terminal_title "Deadline Monitor"
+            clear
+            set_window_size "$APP_WINDOW_SIZE"
+            minimize_after 5
+            "$(dirname "$DEADLINECOMMAND")/deadlinemonitor" ;;
         quit)
             exit_farm_control ;;
     esac
@@ -949,7 +970,7 @@ function execute_selected() {
     if [ $ret -eq 0 ]; then
         refresh_ping_state_async   # runs while user reads output / presses key
         farm_prompt_rule
-        read -n 1 -s -r -p "Press any key to return to the menu..."
+        read -n 1 -s -r -p "  Press any key to return to the menu..."
         set_window_size "$MENU_WINDOW_SIZE"
         load_pm_state
         load_ping_state

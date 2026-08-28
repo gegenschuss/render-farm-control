@@ -1,9 +1,9 @@
 #!/bin/bash
-#       _____                          __
-#      / ___/__ ___ ____ ___  ___ ____/ /  __ _____ ___
-#     / (_ / -_) _ `/ -_) _ \(_-</ __/ _ \/ // (_-<(_-<
-#     \___/\__/\_, /\__/_//_/___/\__/_//_/\_,_/___/___/
-#             /___/
+#  _____                         _
+# |   __|___ ___ ___ ___ ___ ___| |_ _ _ ___ ___
+# |  |  | -_| . | -_|   |_ -|  _|   | | |_ -|_ -|
+# |_____|___|_  |___|_|_|___|___|_|_|___|___|___|
+#           |___|
 #
 cd "$(dirname "$0")"
 source ../lib/config.sh
@@ -25,13 +25,12 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
 fi
 
 "$FARM_SCRIPTS_DIR/lib/header.sh"
-echo ""
 
 farm_print_title "FARM STATUS"
 
 # --- REMOTE STATUS SCRIPT ---
 read -r -d '' STATUS_SCRIPT << 'EOF'
-C_WARN='\033[1;33m'
+C_WARN='\033[1m'
 C_OK='\033[1;32m'
 C_ERR='\033[1;31m'
 C_RESET='\033[0m'
@@ -192,7 +191,7 @@ print_node_header() {
     local width=60
     local line
     line=$(printf "%*s" "$width" "" | tr " " "-")
-    echo -e "${FARM_C_WARN}${line}${FARM_C_RESET}"
+    echo -e "  ${FARM_C_WARN}${line}${FARM_C_RESET}"
     if [[ "$status" == "ONLINE" || "$status" == "ONLINE (Linux)" ]]; then
         printf "  ${FARM_C_NODE}%-14s${FARM_C_RESET}  ${FARM_C_OK}%s${FARM_C_RESET}\n" \
             "$label" "$status"
@@ -206,7 +205,7 @@ print_node_header() {
         printf "  ${FARM_C_NODE}%-14s${FARM_C_RESET}  %s\n" \
             "$label" "$status"
     fi
-    echo -e "${FARM_C_WARN}${line}${FARM_C_RESET}"
+    echo -e "  ${FARM_C_WARN}${line}${FARM_C_RESET}"
 }
 
 # Format a summary line (pipe-delimited) into a short colored table status string.
@@ -269,15 +268,15 @@ check_node_status() {
                     # Windows
                     _wstat "Windows — checking tasks..."
                     print_node_header "$node" "WINDOWS"
-                    echo "$(farm_node_tag "$node") checking important Windows tasks (Premiere, Illustrator, Photoshop, After Effects, Reaper)..."
+                    echo "  $(farm_node_tag "$node") checking Windows tasks (Adobe, Reaper)..."
                     TASKS=$(farm_get_windows_tasks "$node")
                     if [ -z "$TASKS" ]; then
-                        echo "$(farm_node_tag "$node") no important Windows tasks running."
+                        echo "  $(farm_node_tag "$node") no important Windows tasks running."
                         summary_line="$node|windows_idle||n/a"
                         printf "%s\n" "$summary_line" > "$summary_file"
                         printf "windows — idle\n" > "$stat_file"
                     else
-                        echo "$(farm_node_tag "$node") important Windows tasks running:"
+                        echo "  $(farm_node_tag "$node") important Windows tasks running:"
                         while read -r TASK; do
                             [ -n "$TASK" ] && echo "  - $TASK"
                         done <<< "$TASKS"
@@ -407,7 +406,15 @@ check_local_status() {
         [ -n "$_LOCAL_HVER" ] && _LOCAL_HVER=$(basename "$_LOCAL_HVER") || _LOCAL_HVER="not installed"
         printf "    Houdini:  %s\n" "$_LOCAL_HVER"
         printf "\n"
+        # Debian flags reboots via /var/run/reboot-required; Rocky/RHEL
+        # via needs-restarting -r (dnf-utils, exits 1 when reboot is due).
+        _REBOOT_DUE=0
         if [ -f /var/run/reboot-required ]; then
+            _REBOOT_DUE=1
+        elif command -v needs-restarting >/dev/null 2>&1; then
+            needs-restarting -r >/dev/null 2>&1 || _REBOOT_DUE=1
+        fi
+        if [ "$_REBOOT_DUE" -eq 1 ]; then
             printf "  ${FARM_C_WARN}Reboot:${FARM_C_RESET}    ${FARM_C_ERR}[REQUIRED]${FARM_C_RESET}\n"
         else
             printf "  ${FARM_C_WARN}Reboot:${FARM_C_RESET}    ${FARM_C_OK}[NOT REQUIRED]${FARM_C_RESET}\n"
@@ -415,9 +422,10 @@ check_local_status() {
         printf "\n"
         printf "  ${FARM_C_WARN}Process Check:${FARM_C_RESET}\n"
         WARNINGS=0
-        APT_RUNNING=$(pgrep -x apt-get || pgrep -x dpkg || pgrep -xa unattended-upgrades)
-        if [ -n "$APT_RUNNING" ]; then
-            printf "    ${FARM_C_ERR}[WARNING]${FARM_C_RESET}  APT/DPKG update in progress\n"
+        PKG_RUNNING=$(pgrep -x apt-get || pgrep -x dpkg || pgrep -xa unattended-upgrades \
+            || pgrep -x dnf || pgrep -x dnf5 || pgrep -x yum)
+        if [ -n "$PKG_RUNNING" ]; then
+            printf "    ${FARM_C_ERR}[WARNING]${FARM_C_RESET}  Package update in progress\n"
             WARNINGS=1
         fi
         CPU_USAGE=$(top -bn1 | grep 'Cpu(s)' | awk '{print $2}' | cut -d. -f1)
@@ -473,10 +481,13 @@ _draw_table() {
         printf "    %b\033[K\n" "${TBL_STATUS[$i]}"
         printf "\033[K\n"
     done
-    _tbl_footer_lines=0
     if [ -n "$footer" ]; then
         printf "  %s\033[K\n" "$footer"
         _tbl_footer_lines=1
+    else
+        # Erase the footer row left by the previous draw ("Checking...").
+        [ "$can_redraw" -eq 1 ] && [ "$_tbl_footer_lines" -gt 0 ] && printf "\033[K"
+        _tbl_footer_lines=0
     fi
     _tbl_drawn=1
 }
@@ -510,7 +521,6 @@ done
 # INITIAL RENDER + POLL LOOP
 # ---------------------------------------------------------------------------
 
-echo ""
 _draw_table "Checking... [0/$total_nodes]"
 
 _done_count=0
@@ -583,11 +593,11 @@ if [ -t 0 ]; then
     while [ "$_cur" -lt "$_total_details" ]; do
         _remaining=$(( _total_details - _cur - 1 ))
         if [ "$_cur" -eq 0 ]; then
-            _prompt="  Press m for details (${_detail_labels[$_cur]}), any other key to exit "
+            _prompt="m = details (${_detail_labels[$_cur]})   any key = exit "
         else
-            _prompt="  Press m for next (${_detail_labels[$_cur]}${_remaining:+, ${_remaining} left}), any other key to exit "
+            _prompt="m = next (${_detail_labels[$_cur]}${_remaining:+, ${_remaining} left})   any key = exit "
         fi
-        read -n 1 -s -r -p "$_prompt" _key
+        read -n 1 -s -r -p "  $_prompt" _key
         echo ""
         if [[ "$_key" == "m" || "$_key" == "M" ]]; then
             clear

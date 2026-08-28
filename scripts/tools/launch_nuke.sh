@@ -1,9 +1,9 @@
 #!/bin/bash
-#       _____                          __
-#      / ___/__ ___ ____ ___  ___ ____/ /  __ _____ ___
-#     / (_ / -_) _ `/ -_) _ \(_-</ __/ _ \/ // (_-<(_-<
-#     \___/\__/\_, /\__/_//_/___/\__/_//_/\_,_/___/___/
-#             /___/
+#  _____                         _
+# |   __|___ ___ ___ ___ ___ ___| |_ _ _ ___ ___
+# |  |  | -_| . | -_|   |_ -|  _|   | | |_ -|_ -|
+# |_____|___|_  |___|_|_|___|___|_|_|___|___|___|
+#           |___|
 #
 
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
@@ -44,7 +44,7 @@ LATEST_INSTALL=$(printf '%s\n' /opt/Nuke*/ 2>/dev/null | sort -V | tail -n 1)
 LATEST_INSTALL=${LATEST_INSTALL%/}
 
 if [ -z "$LATEST_INSTALL" ]; then
-    echo "Error: No Nuke installation found in /opt"
+    echo "  Error: No Nuke installation found in /opt"
     exit 1
 fi
 
@@ -55,10 +55,10 @@ NUKE_BINARY_PATH="$LATEST_INSTALL/$BINARY_NAME"
 
 # 4. Launch Nuke in Indie Mode
 if [ -f "$NUKE_BINARY_PATH" ]; then
-    echo "Launching $BINARY_NAME Indie from $LATEST_INSTALL..."
+    echo "  Launching $BINARY_NAME Indie from $LATEST_INSTALL..."
     "$NUKE_BINARY_PATH" --indie "$@" &
 else
-    echo "Error: Binary not found at $NUKE_BINARY_PATH"
-    echo "Check if the binary name matches the folder name prefix."
+    echo "  Error: Binary not found at $NUKE_BINARY_PATH"
+    echo "  Check if the binary name matches the folder name prefix."
     exit 1
 fi

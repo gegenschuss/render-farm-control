@@ -1,9 +1,9 @@
 #!/bin/bash
-#       _____                          __
-#      / ___/__ ___ ____ ___  ___ ____/ /  __ _____ ___
-#     / (_ / -_) _ `/ -_) _ \(_-</ __/ _ \/ // (_-<(_-<
-#     \___/\__/\_, /\__/_//_/___/\__/_//_/\_,_/___/___/
-#             /___/
+#  _____                         _
+# |   __|___ ___ ___ ___ ___ ___| |_ _ _ ___ ___
+# |  |  | -_| . | -_|   |_ -|  _|   | | |_ -|_ -|
+# |_____|___|_  |___|_|_|___|___|_|_|___|___|___|
+#           |___|
 #
 cd "$(dirname "$0")"
 source ./config.sh
@@ -53,7 +53,7 @@ sub "" "--yes --dry-run"
 cmd "status.sh" "Full node report"
 cmd "node_session.sh" "control | nvtop"
 sub "flags:" "--yes --local --no-local"
-cmd "update.sh" "Apt update (Linux)"
+cmd "update.sh" "Package update (Linux)"
 sub "flags:" "--yes --dry-run --local"
 sub "" "--no-local"
 cmd "reboot.sh" "Reboot flow"
@@ -71,6 +71,10 @@ sub "usage:" "shutdown|reboot [flags]"
 echo ""
 sec "INSTALLERS"
 cmd "install_app.sh" "houdini | deadline"
+cmd "import_mocha.sh" "Mocha Pro rpm import (local)"
+cmd "update_blender.sh" "Blender update (local)"
+cmd "update_resolve.sh" "DaVinci Resolve update (local)"
+cmd "update_nuke.sh" "Nuke install to /opt (local)"
 cmd "license_houdini.sh" "Update Houdini license (sesictrl)"
 sub "flags:" "--yes --dry-run --local --no-local"
 

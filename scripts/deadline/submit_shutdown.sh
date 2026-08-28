@@ -1,9 +1,9 @@
 #!/bin/bash
-#       _____                          __
-#      / ___/__ ___ ____ ___  ___ ____/ /  __ _____ ___
-#     / (_ / -_) _ `/ -_) _ \(_-</ __/ _ \/ // (_-<(_-<
-#     \___/\__/\_, /\__/_//_/___/\__/_//_/\_,_/___/___/
-#             /___/
+#  _____                         _
+# |   __|___ ___ ___ ___ ___ ___| |_ _ _ ___ ___
+# |  |  | -_| . | -_|   |_ -|  _|   | | |_ -|_ -|
+# |_____|___|_  |___|_|_|___|___|_|_|___|___|___|
+#           |___|
 #
 cd "$(dirname "$0")"
 source ../lib/config.sh
@@ -53,15 +53,14 @@ else
 fi
 
 "$FARM_SCRIPTS_DIR/lib/header.sh"
-echo ""
 farm_print_title "DEADLINE SHUTDOWN SUBMIT"
-echo "Submitting farm post-job shutdown command as Suspended."
-echo "Job name:   $JOB_NAME"
-echo "Allow-list: $ALLOW_LIST"
+echo "  Submitting farm post-job shutdown command as Suspended."
+echo "  Job name:   $JOB_NAME"
+echo "  Allow-list: $ALLOW_LIST"
 if [ "$WITH_WORKSTATION" -eq 1 ]; then
-    echo "Local WS:   included (--local)"
+    echo "  Local WS:   included (--local)"
 else
-    echo "Local WS:   excluded"
+    echo "  Local WS:   excluded"
 fi
 echo ""
 

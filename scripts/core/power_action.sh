@@ -1,9 +1,9 @@
 #!/bin/bash
-#       _____                          __
-#      / ___/__ ___ ____ ___  ___ ____/ /  __ _____ ___
-#     / (_ / -_) _ `/ -_) _ \(_-</ __/ _ \/ // (_-<(_-<
-#     \___/\__/\_, /\__/_//_/___/\__/_//_/\_,_/___/___/
-#             /___/
+#  _____                         _
+# |   __|___ ___ ___ ___ ___ ___| |_ _ _ ___ ___
+# |  |  | -_| . | -_|   |_ -|  _|   | | |_ -|_ -|
+# |_____|___|_  |___|_|_|___|___|_|_|___|___|___|
+#           |___|
 #
 cd "$(dirname "$0")"
 source ../lib/config.sh
@@ -48,7 +48,7 @@ EOF
 
 MODE="${1:-}"
 if [[ -z "$MODE" || "$MODE" == "-h" || "$MODE" == "--help" ]]; then
-    echo "Usage: ./power_action.sh <shutdown|reboot> [options]"
+    echo "  Usage: ./power_action.sh <shutdown|reboot> [options]"
     exit 0
 fi
 shift
@@ -96,27 +96,17 @@ if [ "$POSTJOB" -eq 1 ]; then
     farm_disable_colors
 fi
 
-prompt_inline_yn_with_cancel() {
-    local prompt_text="$1"
-    local answer
-    printf "%s (y/n)? " "$prompt_text"
-    read -n 1 -s -r answer
-    echo "$answer"
-    if [[ "$answer" == "q" || "$answer" == "Q" ]]; then
-        echo "Aborted."
-        exit 0
-    fi
-    FARM_PROMPT_ANSWER="$answer"
-}
+# prompt_inline_yn_with_cancel comes from lib/config.sh (a local
+# shadow copy here once drifted from the shared UI style).
 
 prompt_inline_choice_with_cancel() {
     local prompt_text="$1"
     local answer
-    printf "%s " "$prompt_text"
+    printf "  %s " "$prompt_text"
     read -n 1 -s -r answer
     echo "$answer"
     if [[ "$answer" == "q" || "$answer" == "Q" ]]; then
-        echo "Aborted."
+        echo "  Aborted."
         exit 0
     fi
     FARM_PROMPT_ANSWER="$answer"
@@ -201,7 +191,7 @@ run_commands_with_live_status() {
         if [ "${#text}" -gt "$max_len" ]; then
             text="${text:0:$((max_len - 3))}..."
         fi
-        echo "$text"
+        echo "  $text"
     }
 
     sanitize_status_line() {
@@ -245,7 +235,7 @@ run_commands_with_live_status() {
         table_status_width=24
     fi
 
-    echo "$title"
+    echo "  $title"
     tmp_dir=$(mktemp -d)
 
     for idx in "${!status_nodes[@]}"; do
@@ -361,7 +351,7 @@ run_shutdown() {
 
     local_shutdown_countdown() {
         local seconds="${1:-10}"
-        echo "Shutting down local machine soon..."
+        echo "  Shutting down local machine soon..."
         echo ""
         if ! farm_countdown_with_pause "$seconds" "Local shutdown in"; then
             farm_print_warn "Local shutdown cancelled by user. Remote node shutdown continues."
@@ -374,7 +364,7 @@ run_shutdown() {
     # ── POSTJOB path (non-interactive, no live table) ────────────────
     if [ "$POSTJOB" -eq 1 ]; then
         farm_print_title "FARM SHUTDOWN (POST-JOB)"
-        echo "Running non-interactive post-job shutdown mode..."
+        echo "  Running non-interactive post-job shutdown mode..."
         echo ""
 
         local -a target_nodes=()
@@ -386,7 +376,9 @@ run_shutdown() {
             ( farm_get_node_os_status "$node" "ssh"; printf "%d\n" "$?" > "${_sfiles[$idx]}" ) &
             _pids[$idx]=$!
         done
+        farm_spin_start "checking node os status"
         for pid in "${_pids[@]}"; do wait "$pid" 2>/dev/null; done
+        farm_spin_stop
         local -A _postjob_os=()
         for idx in "${!SHUTDOWN_NODES[@]}"; do
             IFS= read -r _postjob_os["${SHUTDOWN_NODES[$idx]}"] < "${_sfiles[$idx]}" 2>/dev/null || _postjob_os["${SHUTDOWN_NODES[$idx]}"]=0
@@ -398,9 +390,9 @@ run_shutdown() {
                 2)
                     if [ "$FORCE_ACTION" -eq 1 ] || check_update_blockers "$NODE"; then
                         target_nodes+=("$NODE")
-                        echo "$(farm_node_tag "$NODE") Linux - queued for shutdown"
+                        echo "  $(farm_node_tag "$NODE") Linux - queued for shutdown"
                     else
-                        echo "$(farm_node_tag "$NODE") Linux - BLOCKED (update activity detected)"
+                        echo "  $(farm_node_tag "$NODE") Linux - BLOCKED (update activity detected)"
                     fi
                     ;;
                 1) echo "$(farm_node_tag "$NODE") Windows - skipped" ;;
@@ -418,7 +410,7 @@ run_shutdown() {
             echo ""
             local dry_count=${#target_nodes[@]}
             [ "$WITH_LOCAL" -eq 1 ] && ((dry_count++))
-            echo -e "${FARM_C_WARN}[dry-run]${FARM_C_RESET} Would send shutdown command to ${dry_count} node(s):"
+            echo -e "  ${FARM_C_WARN}[dry-run]${FARM_C_RESET} Would send shutdown command to ${dry_count} node(s):"
             for NODE in "${target_nodes[@]}"; do echo "  - $NODE"; done
             [ "$WITH_LOCAL" -eq 1 ] && echo "  - $FARM_LOCAL_NAME (local)"
             farm_print_ok "Dry-run complete. No changes were made."
@@ -426,7 +418,7 @@ run_shutdown() {
         fi
 
         echo ""
-        echo "Sending shutdown command to ${#target_nodes[@]} node(s)..."
+        echo "  Sending shutdown command to ${#target_nodes[@]} node(s)..."
         disable_autowake_timer
         for NODE in "${target_nodes[@]}"; do
             farm_ssh_batch -o ConnectTimeout=5 "$NODE" "$FARM_REMOTE_SHUTDOWN_CMD" >/dev/null 2>&1 &
@@ -434,7 +426,7 @@ run_shutdown() {
         wait
         farm_print_ok "Post-job shutdown commands sent."
         if [ "$WITH_LOCAL" -eq 1 ]; then
-            echo "Shutting down local workstation ($FARM_LOCAL_NAME) in 1 minute..."
+            echo "  Shutting down local workstation ($FARM_LOCAL_NAME) in 1 minute..."
             wall "REMOTE SHUTDOWN: $FARM_LOCAL_NAME will power off in 1 minute." 2>/dev/null || true
             DISPLAY="${DISPLAY:-:0}" \
             XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}" \
@@ -448,7 +440,6 @@ run_shutdown() {
 
     # ── interactive path ──────────────────────────────────────────────────────
     "$FARM_SCRIPTS_DIR/lib/header.sh"
-    echo ""
     farm_print_title "FARM SHUTDOWN"
 
     if [ "$WITH_LOCAL" -eq 1 ]; then local_choice="y"; else local_choice="n"; fi
@@ -459,7 +450,6 @@ run_shutdown() {
     elif [ "$AUTO_YES" -eq 1 ]; then
         schedule_choice="n"
     else
-        echo ""
         prompt_inline_yn_with_cancel "Schedule for later"
         schedule_choice="$FARM_PROMPT_ANSWER"
         farm_prompt_rule
@@ -472,9 +462,9 @@ run_shutdown() {
         elif [ "$AUTO_YES" -eq 1 ]; then
             delay_minutes=0
         else
-            read -r -p "Enter delay in minutes: " delay_minutes
+            read -r -p "  Enter delay in minutes: " delay_minutes
             if [[ "$delay_minutes" == "q" || "$delay_minutes" == "Q" ]]; then
-                echo "Aborted."; exit 0
+                echo "  Aborted."; exit 0
             fi
         fi
         if [[ ! "$delay_minutes" =~ ^[0-9]+$ ]]; then
@@ -667,7 +657,7 @@ EOF
     else
         _draw_table "$_summary"
         if ! farm_confirm_yn "Are you sure? (y/n): " "$AUTO_YES" "n"; then
-            echo "Aborted."; exit 0
+            echo "  Aborted."; exit 0
         fi
         if [ "$AUTO_YES" -eq 1 ] && [ "$can_redraw" -eq 1 ]; then
             printf "\033[%dA\r" $(( total_nodes * 3 + 1 ))
@@ -679,10 +669,10 @@ EOF
     # ── security gate ─────────────────────────────────────────────────────────
     if [ "${#BLOCKED_NODES[@]}" -gt 0 ] && [ "$FORCE_ACTION" -ne 1 ]; then
         farm_print_error "Security stop: update-related activity detected."
-        echo "Blocked node(s):"
+        echo "  Blocked node(s):"
         for node in "${BLOCKED_NODES[@]}"; do echo "  - $node"; done
         echo ""
-        echo "Resolve updates first or rerun with --force to override."
+        echo "  Resolve updates first or rerun with --force to override."
         exit 1
     fi
 
@@ -694,10 +684,10 @@ EOF
 
     # ── delay countdown (if scheduled) ───────────────────────────────────────
     if [[ "$schedule_choice" =~ ^[Yy]$ ]]; then
-        echo "Waiting $delay_minutes minutes..."
+        echo "  Waiting $delay_minutes minutes..."
         echo ""
         if ! farm_countdown_with_pause $((delay_minutes * 60)) "Shutdown in"; then
-            echo "Shutdown cancelled. Exiting."
+            echo "  Shutdown cancelled. Exiting."
             exit 0
         fi
         echo ""
@@ -748,23 +738,23 @@ EOF
     if [[ "$local_choice" =~ ^[Yy]$ ]]; then
         if [ "$remote_targets" -eq 0 ]; then
             echo ""
-            echo "No eligible remote Linux nodes to shut down."
+            echo "  No eligible remote Linux nodes to shut down."
             echo ""
         fi
         if local_shutdown_countdown 10; then
             disable_autowake_timer
             setsid bash -c 'sleep 3 && sudo poweroff' &>/dev/null &
-            echo "Shutdown command sent. Powering off in ~3 seconds..."
+            echo "  Shutdown command sent. Powering off in ~3 seconds..."
         else
             echo ""
-            echo "Local machine stays on."
+            echo "  Local machine stays on."
             echo ""
         fi
     else
         if [ "$remote_targets" -gt 0 ]; then
-            echo "Node shutdown sent. Local machine stays on."
+            echo "  Node shutdown sent. Local machine stays on."
         else
-            echo "No eligible remote Linux nodes to shut down. Local machine stays on."
+            echo "  No eligible remote Linux nodes. Local machine stays on."
         fi
         echo ""
     fi
@@ -778,7 +768,6 @@ run_reboot() {
     [ "$FORCE_ACTION" -eq 1 ] && \
         farm_print_warn "WARNING: --force active — skipping update/activity safety checks."
     "$FARM_SCRIPTS_DIR/lib/header.sh"
-    echo ""
     farm_print_title "FARM REBOOT"
 
     if [ "$WITH_LOCAL" -eq 1 ]; then local_choice="y"; else local_choice="n"; fi
@@ -1039,7 +1028,7 @@ EOF
     else
         _draw_table "$_summary"
         if ! farm_confirm_yn "Are you sure? (y/n): " "$AUTO_YES" "n"; then
-            echo "Aborted."; exit 0
+            echo "  Aborted."; exit 0
         fi
         echo ""
     fi
@@ -1047,10 +1036,10 @@ EOF
     # ── security gate ─────────────────────────────────────────────────────────
     if [ "${#BLOCKED_NODES[@]}" -gt 0 ] && [ "$FORCE_ACTION" -ne 1 ]; then
         farm_print_error "Security stop: update-related activity detected."
-        echo "Blocked node(s):"
+        echo "  Blocked node(s):"
         for node in "${BLOCKED_NODES[@]}"; do echo "  - $node"; done
         echo ""
-        echo "Resolve updates first or rerun with --force to override."
+        echo "  Resolve updates first or rerun with --force to override."
         exit 1
     fi
 
@@ -1107,7 +1096,7 @@ EOF
 
     local_reboot_countdown() {
         local seconds="${1:-10}"
-        echo "Rebooting local machine soon..."
+        echo "  Rebooting local machine soon..."
         echo ""
         if ! farm_countdown_with_pause "$seconds" "Local reboot in"; then
             farm_print_warn "Local reboot cancelled by user. Remote node reboot continues."
@@ -1120,9 +1109,9 @@ EOF
     # ── local machine reboot (after remotes finish) ───────────────────────────
     if [[ "$local_choice" =~ ^[Yy]$ ]]; then
         if [ "$RUN_NO_TMUX_UI" -ne 1 ]; then
-            echo "Waiting for remote reboot sessions to finish..."
+            echo "  Waiting for remote reboot sessions to finish..."
             while tmux has-session -t $SESSION 2>/dev/null; do sleep 2; done
-            echo "Remote reboot sessions completed."
+            echo "  Remote reboot sessions completed."
             echo ""
         fi
         if local_reboot_countdown 10; then
@@ -1131,11 +1120,11 @@ EOF
             sudo -n /usr/sbin/reboot 2>/dev/null || systemctl reboot
         else
             echo ""
-            echo "Local machine stays on."
+            echo "  Local machine stays on."
             echo ""
         fi
     else
-        echo "Remote reboot commands sent. Local machine stays on."
+        echo "  Remote reboot commands sent. Local machine stays on."
         echo ""
     fi
 }
@@ -1145,7 +1134,7 @@ case "$MODE" in
     reboot) run_reboot ;;
     *)
         farm_print_error "Unknown mode: $MODE"
-        echo "Use shutdown or reboot."
+        echo "  Use shutdown or reboot."
         exit 1
         ;;
 esac

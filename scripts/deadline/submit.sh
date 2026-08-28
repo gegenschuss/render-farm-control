@@ -1,9 +1,9 @@
 #!/bin/bash
-#       _____                          __
-#      / ___/__ ___ ____ ___  ___ ____/ /  __ _____ ___
-#     / (_ / -_) _ `/ -_) _ \(_-</ __/ _ \/ // (_-<(_-<
-#     \___/\__/\_, /\__/_//_/___/\__/_//_/\_,_/___/___/
-#             /___/
+#  _____                         _
+# |   __|___ ___ ___ ___ ___ ___| |_ _ _ ___ ___
+# |  |  | -_| . | -_|   |_ -|  _|   | | |_ -|_ -|
+# |_____|___|_  |___|_|_|___|___|_|_|___|___|___|
+#           |___|
 #
 cd "$(dirname "$0")"
 source ../lib/config.sh
@@ -37,7 +37,7 @@ Notes:
   - This submits using Plugin=CommandScript.
 EOF
     echo ""
-    echo "Examples:"
+    echo "  Examples:"
     echo "  $script_path --script ./shutdown.sh -- --deadline-postjob"
     echo "  $script_path --name \"Farm Finalizer\" --batch-name nightly \\"
     echo "    --depends-on 67f1abc,67f1abd --script ./finalize.sh \\"
@@ -255,10 +255,10 @@ cleanup() {
 trap cleanup EXIT
 
 {
-    echo "Plugin=CommandScript"
-    echo "Name=$JOB_NAME"
-    echo "Frames=0"
-    echo "ChunkSize=1"
+    echo "  Plugin=CommandScript"
+    echo "  Name=$JOB_NAME"
+    echo "  Frames=0"
+    echo "  ChunkSize=1"
     [ -n "$BATCH_NAME" ] && echo "BatchName=$BATCH_NAME"
     [ -n "$POOL" ] && echo "Pool=$POOL"
     [ -n "$GROUP" ] && echo "Group=$GROUP"
@@ -269,19 +269,19 @@ trap cleanup EXIT
 } > "$JOB_INFO_FILE"
 
 {
-    echo "StartupDirectory=$STARTUP_DIR"
+    echo "  StartupDirectory=$STARTUP_DIR"
 } > "$PLUGIN_INFO_FILE"
 
 {
-    echo "$COMMAND_LINE"
+    echo "  $COMMAND_LINE"
 } > "$COMMAND_FILE"
 
 if [ "$NO_HEADER" -ne 1 ]; then
     farm_print_title "DEADLINE COMMAND SUBMIT"
 fi
-echo "Script:        $SCRIPT_ABS"
-echo "Startup dir:   $STARTUP_DIR"
-echo "Job name:      $JOB_NAME"
+echo "  Script:        $SCRIPT_ABS"
+echo "  Startup dir:   $STARTUP_DIR"
+echo "  Job name:      $JOB_NAME"
 [ -n "$BATCH_NAME" ] && echo "Batch name:    $BATCH_NAME"
 [ -n "$POOL" ] && echo "Pool:          $POOL"
 [ -n "$GROUP" ] && echo "Group:         $GROUP"
@@ -289,7 +289,7 @@ echo "Job name:      $JOB_NAME"
 [ -n "$ALLOW_LIST" ] && echo "Allow-list:    $ALLOW_LIST"
 [ -n "$DEPENDS_ON" ] && echo "Depends on:    $DEPENDS_ON"
 [ "$SUSPENDED" -eq 1 ] && echo "Initial state: Suspended"
-echo "Command:       $COMMAND_LINE"
+echo "  Command:       $COMMAND_LINE"
 echo ""
 
 if [ "$DRY_RUN" -eq 1 ]; then
@@ -305,7 +305,7 @@ fi
 
 SUBMIT_OUTPUT="$("$FARM_DEADLINECOMMAND" "$JOB_INFO_FILE" "$PLUGIN_INFO_FILE" "$COMMAND_FILE" 2>&1)"
 SUBMIT_EXIT=$?
-echo "$SUBMIT_OUTPUT"
+echo "  $SUBMIT_OUTPUT"
 echo ""
 if [ "$SUBMIT_EXIT" -ne 0 ]; then
     farm_print_error "Deadline submission failed."

@@ -1,9 +1,9 @@
 #!/bin/bash
-#       _____                          __
-#      / ___/__ ___ ____ ___  ___ ____/ /  __ _____ ___
-#     / (_ / -_) _ `/ -_) _ \(_-</ __/ _ \/ // (_-<(_-<
-#     \___/\__/\_, /\__/_//_/___/\__/_//_/\_,_/___/___/
-#             /___/
+#  _____                         _
+# |   __|___ ___ ___ ___ ___ ___| |_ _ _ ___ ___
+# |  |  | -_| . | -_|   |_ -|  _|   | | |_ -|_ -|
+# |_____|___|_  |___|_|_|___|___|_|_|___|___|___|
+#           |___|
 #
 
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
@@ -19,7 +19,6 @@ cd "$(dirname "$0")"
 source ../lib/config.sh
 
 "$FARM_SCRIPTS_DIR/lib/header.sh"
-echo ""
 
 # --- CONFIGURATION: FIXED PATHS ---
 _HOME="${FARM_LINUX_HOME:-$HOME}"
@@ -34,7 +33,7 @@ HOUDINI_SIM_ROOT="/mnt/houdini/sim"
 
 # --- SAFETY CHECK ---
 if [ "$EUID" -ne 0 ]; then
-  echo "ERROR: Please run this script with sudo."
+  echo "  ERROR: Please run this script with sudo."
   exit 1
 fi
 
@@ -43,7 +42,7 @@ clean_defined_app() {
     local APP_NAME=$1
     local -n PATHS_ARRAY=$2
 
-    echo "Checking $APP_NAME..."
+    echo "  Checking $APP_NAME..."
     
     local FOUND_ANY=false
     for DIR in "${PATHS_ARRAY[@]}"; do
@@ -56,17 +55,15 @@ clean_defined_app() {
 
     if [ "$FOUND_ANY" = false ]; then
         echo "   (No directories found to clean)"
-        echo " "
-        echo " "
+        echo ""
         return
     fi
 
-    read -p "Purge contents of $APP_NAME? (y/n, q=cancel) " -n 1 -r
+    read -p "  Purge contents of $APP_NAME? (y/n, q=cancel) " -n 1 -r
     echo "" 
     if [[ $REPLY =~ ^[Qq]$ ]]; then
         echo "   Aborted."
-        echo " "
-        echo " "
+        echo ""
         exit 0
     fi
 
@@ -81,12 +78,10 @@ clean_defined_app() {
             fi
         done
         echo "   Contents cleared."
-        echo " "
-        echo " "
+        echo ""
     else
         echo "   Skipped"
-        echo " "
-        echo " "
+        echo ""
     fi
 }
 
@@ -95,10 +90,10 @@ clean_dynamic_root() {
     local LABEL=$1
     local ROOT_DIR=$2
 
-    echo "Scanning $LABEL ($ROOT_DIR)..."
+    echo "  Scanning $LABEL ($ROOT_DIR)..."
 
     if [ ! -d "$ROOT_DIR" ]; then
-        echo "Root folder not found."
+        echo "  Root folder not found."
         return
     fi
 
@@ -112,32 +107,28 @@ clean_dynamic_root() {
 
         echo ""
         echo "   Found Project: $FOLDER_NAME ($SIZE)"
-        read -p "   > DELETE '$FOLDER_NAME' entirely? (y/n, q=cancel) " -n 1 -r
+        read -p "  > DELETE '$FOLDER_NAME'? (y/n, q=cancel) " -n 1 -r
         echo ""
         if [[ $REPLY =~ ^[Qq]$ ]]; then
             echo "      Aborted."
-            echo " "
-            echo " "
+            echo ""
             exit 0
         fi
 
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             rm -rf "$DIR"
             echo "      $FOLDER_NAME deleted."
-            echo " "
-            echo " "
+            echo ""
         else
             echo "      Skipped."
-            echo " "
-            echo " "
+            echo ""
         fi
     done
     shopt -u nullglob
 
     if [ "$count" -eq 0 ]; then
         echo "   (No sub-folders found in $LABEL)"
-        echo " "
-        echo " "
+        echo ""
     fi
 }
 
@@ -153,5 +144,5 @@ clean_defined_app "DAVINCI RESOLVE" RESOLVE_PATHS
 clean_dynamic_root "HOUDINI RENDERS" "$HOUDINI_RENDER_ROOT"
 clean_dynamic_root "HOUDINI SIMS" "$HOUDINI_SIM_ROOT"
 
-echo "------------------------------------------"
-echo "Done."
+echo "  ------------------------------------------"
+echo "  Done."

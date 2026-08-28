@@ -1,9 +1,9 @@
 #!/bin/bash
-#       _____                          __
-#      / ___/__ ___ ____ ___  ___ ____/ /  __ _____ ___
-#     / (_ / -_) _ `/ -_) _ \(_-</ __/ _ \/ // (_-<(_-<
-#     \___/\__/\_, /\__/_//_/___/\__/_//_/\_,_/___/___/
-#             /___/
+#  _____                         _
+# |   __|___ ___ ___ ___ ___ ___| |_ _ _ ___ ___
+# |  |  | -_| . | -_|   |_ -|  _|   | | |_ -|_ -|
+# |_____|___|_  |___|_|_|___|___|_|_|___|___|___|
+#           |___|
 #
 cd "$(dirname "$0")"
 source ../lib/config.sh
@@ -61,32 +61,31 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
 fi
 
 "$FARM_SCRIPTS_DIR/lib/header.sh"
-echo ""
 
 X_START="$FARM_X_START"
 farm_print_title "$APP_TITLE"
 
-echo "Do you want to copy the archive to:"
+echo "  Do you want to copy the archive to:"
 echo "  $SEARCH_DIR?"
 farm_prompt_rule
-read -p "(y/n, q=cancel): " COPY_ARCHIVE
+read -p "  (y/n, q=cancel): " COPY_ARCHIVE
 echo ""
 if [[ "$COPY_ARCHIVE" == "q" || "$COPY_ARCHIVE" == "Q" ]]; then
-    echo "Aborted."
+    echo "  Aborted."
     exit 0
 fi
 if [[ "$COPY_ARCHIVE" =~ ^[Yy]$ ]]; then
-    echo "Copy from which directory?"
+    echo "  Copy from which directory?"
     farm_prompt_rule
-    read -p "(default: ~/Downloads): " COPY_SOURCE
+    read -p "  (default: ~/Downloads): " COPY_SOURCE
     if [[ "$COPY_SOURCE" == "q" || "$COPY_SOURCE" == "Q" ]]; then
-        echo "Aborted."
+        echo "  Aborted."
         exit 0
     fi
     COPY_SOURCE="${COPY_SOURCE:-$HOME/Downloads}"
     COPY_SOURCE="${COPY_SOURCE/#\~/$HOME}"
     echo ""
-    echo "Searching for latest package in:"
+    echo "  Searching for latest package in:"
     echo "  $COPY_SOURCE"
     echo ""
     if [ ! -d "$COPY_SOURCE" ]; then
@@ -117,7 +116,7 @@ if [[ "$COPY_ARCHIVE" =~ ^[Yy]$ ]]; then
 fi
 
 farm_print_section "$SEARCH_TEXT"
-echo "Location:"
+echo "  Location:"
 echo "  $SEARCH_DIR"
 echo ""
 if [ ! -d "$SEARCH_DIR" ]; then
@@ -143,23 +142,17 @@ TARGET_VERSION=$(farm_install_target_version "$FILENAME_ONLY")
 # Query the installed version of $MODE on a node ("" = local workstation).
 # Echoes the raw version string (empty if not installed).
 query_installed_version() {
-    local node="$1"
+    local node="$1" probe
+    case "$MODE" in
+        deadline) probe='[ -f "'"$FARM_DEADLINECOMMAND"'" ] && "'"$FARM_DEADLINECOMMAND"'" --version 2>/dev/null' ;;
+        *)        probe='ls -1d /opt/hfs* 2>/dev/null | sort -V | tail -1' ;;
+    esac
     if [ -z "$node" ]; then
-        if [ "$MODE" = "deadline" ]; then
-            [ -f "$FARM_DEADLINECOMMAND" ] && "$FARM_DEADLINECOMMAND" --version 2>/dev/null
-        else
-            ls -1d /opt/hfs* 2>/dev/null | sort -V | tail -1
-        fi
+        bash -c "$probe"
     else
         # -n: never read stdin, so these probes can't swallow the keystrokes
         # the user later types at the selection prompt.
-        if [ "$MODE" = "deadline" ]; then
-            ssh -n -F ~/.ssh/config -o LogLevel=ERROR "$node" \
-                '[ -f "'"$FARM_DEADLINECOMMAND"'" ] && "'"$FARM_DEADLINECOMMAND"'" --version 2>/dev/null'
-        else
-            ssh -n -F ~/.ssh/config -o LogLevel=ERROR "$node" \
-                'ls -1d /opt/hfs* 2>/dev/null | sort -V | tail -1'
-        fi
+        ssh -n -F ~/.ssh/config -o LogLevel=ERROR "$node" "$probe"
     fi
 }
 
@@ -272,8 +265,8 @@ else
     echo "  All targets are already up to date."
 fi
 farm_prompt_rule
-echo "  [Enter]=update-only   a=all   numbers e.g. 1,3,5=manual   q=cancel"
-read -p "> " SEL
+echo "  [Enter]=update   a=all   1,3,5=manual   q=cancel"
+read -p "  > " SEL
 echo ""
 
 case "$SEL" in
@@ -294,7 +287,7 @@ case "$SEL" in
 esac
 
 if [ ${#SELECTED[@]} -eq 0 ]; then
-    echo "Nothing selected — nothing to install."
+    echo "  Nothing selected — nothing to install."
     exit 0
 fi
 
@@ -309,13 +302,13 @@ for i in "${SELECTED[@]}"; do
     fi
 done
 
-echo "Will install ${FILENAME_ONLY} on:"
+echo "  Will install ${FILENAME_ONLY} on:"
 for i in "${SELECTED[@]}"; do
     lm=""; [ "${CAND_LOCAL[$i]}" = "1" ] && lm=" (local)"
     printf "  - %s%s\n" "${CAND_NAME[$i]}" "$lm"
 done
 farm_prompt_rule
-read -p "Proceed? (y/n): " PROCEED
+read -p "  Proceed? (y/n): " PROCEED
 echo ""
 if [[ ! "$PROCEED" =~ ^[Yy]$ ]]; then
     echo "  Aborted."
@@ -332,7 +325,7 @@ if [ "$MODE" = "deadline" ]; then
     B64_REMOTE=$(echo "$REMOTE_SCRIPT" | base64 -w 0)
     REMOTE_FINAL_CMD="bash -c 'echo $B64_REMOTE | base64 -d | bash'"
 else
-    HOUDINI_SCRIPT=$(farm_install_build_houdini_cmd \
+    APP_SCRIPT=$(farm_install_build_houdini_cmd \
         "$FILENAME_ONLY" "$SEARCH_DIR" "$INSTALL_DIR")
 
     # The generated script contains single/double quotes, newlines and raw ANSI
@@ -340,16 +333,16 @@ else
     # quoting and the tmux pane dies instantly ("server exited unexpectedly").
     # base64-encode it the same way the deadline path does so the wrapper only
     # ever sees a safe [A-Za-z0-9+/=] payload.
-    B64_HOUDINI=$(echo "$HOUDINI_SCRIPT" | base64 -w 0)
-    REMOTE_FINAL_CMD="bash -c 'echo $B64_HOUDINI | base64 -d | bash'"
-    LOCAL_SCRIPT="echo $B64_HOUDINI | base64 -d | bash"
+    B64_APP=$(echo "$APP_SCRIPT" | base64 -w 0)
+    REMOTE_FINAL_CMD="bash -c 'echo $B64_APP | base64 -d | bash'"
+    LOCAL_SCRIPT="echo $B64_APP | base64 -d | bash"
 fi
 
 farm_print_section "Launching tmux session"
-echo "Session:"
+echo "  Session:"
 echo "    $SESSION"
 echo ""
-echo "Targets:"
+echo "  Targets:"
 [ ${#ELIGIBLE_NODES[@]} -gt 0 ] && echo "  ${ELIGIBLE_NODES[*]}"
 [[ "$INSTALL_LOCAL" =~ ^[Yy]$ ]] && echo "  $FARM_LOCAL_NAME (local)"
 echo ""
