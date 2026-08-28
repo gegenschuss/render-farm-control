@@ -16,7 +16,6 @@ Open tmux panes on eligible Linux farm nodes.
 
 Options:
   -h, --help      Show this help message
-  -y, --yes       Auto-include local workstation pane
       --local     Include local workstation pane
       --no-local  Exclude local workstation pane
 EOF
@@ -29,7 +28,6 @@ if [[ "$MODE" == "-h" || "$MODE" == "--help" || -z "$MODE" ]]; then
 fi
 shift
 
-AUTO_YES=0
 FORCE_LOCAL=""
 for arg in "$@"; do
     case "$arg" in
@@ -37,7 +35,6 @@ for arg in "$@"; do
             show_help
             exit 0
             ;;
-        -y|--yes) AUTO_YES=1 ;;
         --local) FORCE_LOCAL="y" ;;
         --no-local) FORCE_LOCAL="n" ;;
         *) farm_die_unknown_option "$arg" show_help ;;

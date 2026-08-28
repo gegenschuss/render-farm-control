@@ -60,10 +60,10 @@ check_dualboot_status() {
                     local UPDATE_ACTIVE
                     farm_spin_start "checking active Windows updates on $NAME"
                     UPDATE_ACTIVE=$(farm_ssh_batch "${NAME}-win" \
-                        'powershell -Command "Get-Process -Name TiWorker,wuauclt,WUDFHost -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name"' \
+                        'powershell -Command "Get-Process -Name TiWorker,wuauclt -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name"' \
                         2>/dev/null)
                     farm_spin_stop
-                    if echo "$UPDATE_ACTIVE" | grep -qi "TiWorker\|wuauclt\|WUDFHost"; then
+                    if echo "$UPDATE_ACTIVE" | grep -qi "TiWorker\|wuauclt"; then
                         farm_print_warn "$NAME: WINDOWS UPDATE ACTIVE - skipped by default."
                         result_code=2
                     else
@@ -93,7 +93,7 @@ show_timer() {
         sleep 1
         ((seconds++))
     done
-    printf "\r\${label}: fertig!          \n"
+    printf "\r\${label}: done!           \n"
 }
 
 $(if [ "$STATUS" -eq 2 ]; then
@@ -106,41 +106,41 @@ echo -e "${FARM_C_OK}Already on Linux - ready!${FARM_C_RESET}"
 READY
 else
 cat << BOOT
-echo "[$NAME] Warte auf Windows SSH..."
+echo "[$NAME] Waiting for Windows SSH..."
 seconds=0
 while ! ssh -F ~/.ssh/config -o BatchMode=yes -o ConnectTimeout=3 -o LogLevel=ERROR ${NAME}-win "echo ok" &>/dev/null; do
-    printf "\r[$NAME] SSH versuch: %02d:%02d" \$((seconds/60)) \$((seconds%60))
+    printf "\r[$NAME] SSH attempt: %02d:%02d" \$((seconds/60)) \$((seconds%60))
     sleep 5
     ((seconds+=5))
     if [ \$seconds -ge 300 ]; then
         echo ""
-        echo "[$NAME] TIMEOUT: Windows SSH nicht erreichbar!"
+        echo "[$NAME] TIMEOUT: Windows SSH unreachable!"
         exit 1
     fi
 done
 echo ""
-echo "[$NAME] Windows erreichbar - sende Reboot nach Linux..."
+echo "[$NAME] Windows reachable - sending reboot to Linux..."
 
 ssh -F ~/.ssh/config -o BatchMode=yes -o LogLevel=ERROR ${NAME}-win "powershell -Command \"bcdedit /set '{fwbootmgr}' bootsequence '$BIOS_GUID'\""
 sleep 2
 ssh -F ~/.ssh/config -o BatchMode=yes -o LogLevel=ERROR ${NAME}-win "shutdown /r /t 5"
 
-echo "[$NAME] Warte auf Linux-Boot..."
+echo "[$NAME] Waiting for Linux boot..."
 sleep $LINUX_WAIT &
 SLEEP_PID=\$!
 show_timer "[$NAME] Linux Boot " \$SLEEP_PID
 wait \$SLEEP_PID
 
-echo "[$NAME] Warte auf Ping..."
+echo "[$NAME] Waiting for ssh..."
 seconds=0
-while ! ping -c 1 -W 1 "$NAME" &>/dev/null; do
-    printf "\r[$NAME] Ping: warte... %02d:%02d" \$((seconds/60)) \$((seconds%60))
+while ! ssh -n -F ~/.ssh/config -o BatchMode=yes -o ConnectTimeout=2 -o LogLevel=ERROR "$NAME" true &>/dev/null; do
+    printf "\r[$NAME] ssh: waiting... %02d:%02d" \$((seconds/60)) \$((seconds%60))
     sleep 2
     ((seconds+=2))
 done
 
 echo ""
-echo -e "${FARM_C_OK}NODE: $NAME ist ONLINE (Linux) bereit!${FARM_C_RESET}"
+echo -e "${FARM_C_OK}NODE: $NAME is ONLINE (Linux) - ready!${FARM_C_RESET}"
 sleep 5
 BOOT
 fi)

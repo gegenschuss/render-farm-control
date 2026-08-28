@@ -38,7 +38,7 @@ Notes:
 EOF
     echo ""
     echo "  Examples:"
-    echo "  $script_path --script ./shutdown.sh -- --deadline-postjob"
+    echo "  $script_path --script scripts/core/shutdown.sh -- --postjob"
     echo "  $script_path --name \"Farm Finalizer\" --batch-name nightly \\"
     echo "    --depends-on 67f1abc,67f1abd --script ./finalize.sh \\"
     echo "    -- --grace-seconds=30"
@@ -196,14 +196,14 @@ if [ -n "${ALLOW_LIST:-}" ]; then
     for _al_node in "${_al_nodes[@]}"; do
         local_ok=0
         _al_node="${_al_node// /}"  # trim spaces
-        if printf '%s\n' "${NODES[@]}" | rg -x --fixed-strings "$_al_node" >/dev/null 2>&1; then
+        if printf '%s\n' "${NODES[@]}" | grep -Fxq "$_al_node"; then
             local_ok=1
         fi
         # Accept Deadline worker-style names like "host-gpu1" by matching host
         # against known farm nodes or the local workstation label.
         if [ "$local_ok" -eq 0 ] && [[ "$_al_node" =~ ^(.+)-gpu[0-9]+$ ]]; then
             _al_host="${BASH_REMATCH[1]}"
-            if printf '%s\n' "${NODES[@]}" | rg -x --fixed-strings "$_al_host" >/dev/null 2>&1; then
+            if printf '%s\n' "${NODES[@]}" | grep -Fxq "$_al_host"; then
                 local_ok=1
             elif [ -n "${FARM_LOCAL_NAME:-}" ] && [ "$_al_host" = "$FARM_LOCAL_NAME" ]; then
                 local_ok=1

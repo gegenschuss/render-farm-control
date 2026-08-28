@@ -43,7 +43,7 @@ Behavior:
 
 5) Post-job shutdown fallback (direct)
 --------------------------------------
-/Volumes/scripts/scripts/farm_shutdown.sh --deadline-postjob
+/Volumes/scripts/scripts/farm_shutdown.sh --postjob
 
 Behavior:
 - non-interactive Linux-node shutdown path
@@ -54,7 +54,7 @@ Behavior:
 -------------------------------------
 /Volumes/scripts/scripts/farm_deadline_submit_command.sh \
   --name "Farm PostJob Shutdown" \
-  --script /Volumes/scripts/scripts/farm_shutdown.sh -- --deadline-postjob
+  --script /Volumes/scripts/scripts/farm_shutdown.sh -- --postjob
 
 Behavior:
 - submits a Command Script job via deadlinecommand

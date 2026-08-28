@@ -274,7 +274,7 @@ check_node_status() {
                         echo "  $(farm_node_tag "$node") no important Windows tasks running."
                         summary_line="$node|windows_idle||n/a"
                         printf "%s\n" "$summary_line" > "$summary_file"
-                        printf "windows — idle\n" > "$stat_file"
+                        [ -n "$stat_file" ] && printf "windows — idle\n" > "$stat_file"
                     else
                         echo "  $(farm_node_tag "$node") important Windows tasks running:"
                         while read -r TASK; do
@@ -283,7 +283,7 @@ check_node_status() {
                         TASKS_INLINE=$(echo "$TASKS" | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')
                         summary_line="$node|windows_apps|$TASKS_INLINE|n/a"
                         printf "%s\n" "$summary_line" > "$summary_file"
-                        printf "windows — %s\n" "$TASKS_INLINE" > "$stat_file"
+                        [ -n "$stat_file" ] && printf "windows — %s\n" "$TASKS_INLINE" > "$stat_file"
                     fi
                     LOGGED_IN=$(ssh -F ~/.ssh/config -o BatchMode=yes -o LogLevel=ERROR \
                         "${node}-win" \
@@ -595,7 +595,9 @@ if [ -t 0 ]; then
         if [ "$_cur" -eq 0 ]; then
             _prompt="m = details (${_detail_labels[$_cur]})   any key = exit "
         else
-            _prompt="m = next (${_detail_labels[$_cur]}${_remaining:+, ${_remaining} left})   any key = exit "
+            _left=""
+            [ "$_remaining" -gt 0 ] && _left=", ${_remaining} left"
+            _prompt="m = next (${_detail_labels[$_cur]}${_left})   any key = exit "
         fi
         read -n 1 -s -r -p "  $_prompt" _key
         echo ""

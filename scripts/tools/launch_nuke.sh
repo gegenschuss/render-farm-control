@@ -43,7 +43,9 @@ export NUKE_TEMP_DIR="$FARM_LINUX_HOME/.cache/nuke/"
 LATEST_INSTALL=$(printf '%s\n' /opt/Nuke*/ 2>/dev/null | sort -V | tail -n 1)
 LATEST_INSTALL=${LATEST_INSTALL%/}
 
-if [ -z "$LATEST_INSTALL" ]; then
+# -d, not -z: with no match the glob stays literal ("/opt/Nuke*"),
+# so the variable is never empty.
+if [ ! -d "$LATEST_INSTALL" ]; then
     echo "  Error: No Nuke installation found in /opt"
     exit 1
 fi

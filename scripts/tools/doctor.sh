@@ -70,6 +70,7 @@ check_cmd "nvidia-smi" "warn" "nvidia-smi"
 farm_print_section "Terminal integration"
 if [[ "$FARM_OS" == "mac" ]]; then
     check_cmd "osascript" "required" "osascript"
+    ((TOTAL++))
     if osascript -e 'id of application "iTerm2"' >/dev/null 2>&1; then
         printf "  [OK]   %-20s installed\n" "iTerm2"
     else
@@ -83,6 +84,7 @@ else
 fi
 
 farm_print_section "Deadline integration"
+((TOTAL++))
 if [ -x "$FARM_DEADLINECOMMAND" ]; then
     echo "  [OK]   deadlinecommand      $FARM_DEADLINECOMMAND"
 else
@@ -91,18 +93,29 @@ else
 fi
 
 farm_print_section "Node reachability"
+# Probe over ssh (the channel every tool uses): bare-name ping can
+# resolve through a different transport and fake node status.
 ONLINE=0
 for node in "${NODES[@]}"; do
-    farm_spin_start "pinging $node"
-    if ping -c 1 -W 1 "$node" &>/dev/null; then
-        farm_spin_stop
-        echo "  [OK]   $node reachable"
-        ((ONLINE++))
-    else
-        farm_spin_stop
-        echo "  [WARN] $node unreachable"
-        ((WARN++))
-    fi
+    ((TOTAL++))
+    farm_spin_start "checking $node (ssh)"
+    farm_get_node_os_status "$node" "ssh"
+    _rc=$?
+    farm_spin_stop
+    case "$_rc" in
+        2)
+            echo "  [OK]   $node reachable (linux)"
+            ((ONLINE++))
+            ;;
+        1)
+            echo "  [OK]   $node reachable (windows)"
+            ((ONLINE++))
+            ;;
+        *)
+            echo "  [WARN] $node unreachable"
+            ((WARN++))
+            ;;
+    esac
 done
 
 echo ""

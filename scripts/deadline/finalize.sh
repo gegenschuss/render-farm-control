@@ -26,7 +26,7 @@ Options:
 Behavior:
   - non-interactive
   - writes log file to /tmp/finalize.log
-  - triggers: ./shutdown.sh --deadline-postjob
+  - triggers: scripts/core/shutdown.sh --postjob
 
 Deadline setup (Monitor):
   1) Submit all render jobs first.
@@ -92,7 +92,7 @@ if [ "$DRY_RUN" -eq 1 ]; then
     if [ "$NO_SHUTDOWN" -eq 1 ]; then
         echo "  [dry-run] Would skip shutdown by flag."
     else
-        echo "  [dry-run] Would run: $(pwd)/shutdown.sh --deadline-postjob"
+        echo "  [dry-run] Would run: $FARM_SCRIPTS_DIR/core/shutdown.sh --postjob"
     fi
     echo ""
     farm_print_ok "Finalizer dry-run complete."
@@ -110,7 +110,7 @@ if [ "$NO_SHUTDOWN" -eq 1 ]; then
 fi
 
 echo "  Triggering post-job shutdown..."
-"$(pwd)/shutdown.sh" --deadline-postjob
+"$FARM_SCRIPTS_DIR/core/shutdown.sh" --postjob
 EXIT_CODE=$?
 echo ""
 echo "  Post-job shutdown exit code: $EXIT_CODE"

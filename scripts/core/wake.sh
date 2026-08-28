@@ -227,7 +227,11 @@ declare -a _linux_pids=()
 for NODE in "${NODES[@]}"; do
     if farm_is_dual_boot_node "$NODE"; then continue; fi
     _linux_nodes+=("$NODE")
-    ( ping -c 1 -W 1 "$NODE" &>/dev/null && echo online || echo offline \
+    # Probe over ssh: bare-name ping can resolve through a different
+    # transport than the ssh HostName and fake node status.
+    ( ssh -n -F ~/.ssh/config -o BatchMode=yes -o ConnectTimeout=3 \
+        -o LogLevel=ERROR "$NODE" true &>/dev/null \
+        && echo online || echo offline \
     ) > "$_precheck_tmp/linux_${NODE}.out" &
     _linux_pids+=($!)
 done
@@ -387,7 +391,8 @@ if [ "$PREJOB_MODE" -eq 1 ]; then
             fi
             if [ "${LINUX_STATUS[$NODE]}" = "offline" ]; then
                 ((TARGET_COUNT++))
-                if ping -c 1 -W 1 "$NODE" &>/dev/null; then
+                if ssh -n -F ~/.ssh/config -o BatchMode=yes -o ConnectTimeout=2 \
+                    -o LogLevel=ERROR "$NODE" true &>/dev/null; then
                     ((RESPONDED_COUNT++))
                 fi
             fi
@@ -499,7 +504,9 @@ if [ "$PREJOB_MODE" -eq 1 ]; then
                     else
                         if [ "${LINUX_STATUS[$NODE]}" = "online" ]; then
                             echo "    $NODE:  online (ready)"
-                        elif ping -c 1 -W 1 "$NODE" &>/dev/null; then
+                        elif ssh -n -F ~/.ssh/config -o BatchMode=yes \
+                            -o ConnectTimeout=2 -o LogLevel=ERROR \
+                            "$NODE" true &>/dev/null; then
                             echo "    $NODE:  online (ready)"
                         else
                             echo "    $NODE:  offline"
@@ -641,7 +648,7 @@ if [ "$USE_TMUX_MONITOR" -eq 0 ]; then
             done
         else
             if [ "${LINUX_STATUS[$NODE]}" = "offline" ]; then
-                JOB_CMDS[$idx]="while ! ping -c 1 -W 1 \"$NODE\" >/dev/null 2>&1; do sleep 1; done; echo \"$NODE online and ready\""
+                JOB_CMDS[$idx]="while ! ssh -n -F ~/.ssh/config -o BatchMode=yes -o ConnectTimeout=2 -o LogLevel=ERROR \"$NODE\" true >/dev/null 2>&1; do sleep 2; done; echo \"$NODE online and ready\""
             fi
         fi
     done
@@ -751,12 +758,12 @@ else
     # --- MONITORING SCRIPT (Linux nodes) ---
     read -r -d '' MONITOR_SCRIPT << EOF
 TARGET=\$1
-echo "Warte auf Netzwerkverbindung zu \$TARGET..."
-while ! ping -c 1 -W 1 "\$TARGET" &> /dev/null; do
-    sleep 1
+echo "Waiting for ssh on \$TARGET..."
+while ! ssh -n -F ~/.ssh/config -o BatchMode=yes -o ConnectTimeout=2 -o LogLevel=ERROR "\$TARGET" true >/dev/null 2>&1; do
+    sleep 2
 done
 echo ""
-echo -e "${FARM_C_OK}\$TARGET ist ONLINE und bereit!${FARM_C_RESET}"
+echo -e "${FARM_C_OK}\$TARGET is ONLINE and ready!${FARM_C_RESET}"
 sleep 5
 EOF
 

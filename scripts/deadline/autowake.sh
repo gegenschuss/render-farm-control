@@ -59,7 +59,23 @@ print_install_hint() {
     echo "  - $TIMER_PATH"
     echo ""
     echo "  Install with:"
-    echo "  bash \"$FARM_BASE_DIR/autowake.sh\" install"
+    echo "  bash \"$FARM_SCRIPTS_DIR/deadline/autowake.sh\" install"
+}
+
+# run_step <label> <cmd...>: one indented ok/FAILED step line; a
+# failure is remembered so summaries stay honest.
+STEP_FAILED=0
+run_step() {
+    local label="$1"
+    shift
+    printf "  %s..." "$label"
+    if "$@" >/dev/null 2>&1; then
+        printf " ${FARM_C_OK}ok${FARM_C_RESET}\n"
+        return 0
+    fi
+    printf " ${FARM_C_ERR}FAILED${FARM_C_RESET}\n"
+    STEP_FAILED=1
+    return 1
 }
 
 ensure_installed() {
@@ -105,11 +121,10 @@ Unit=$SERVICE_NAME
 WantedBy=timers.target
 EOF
 
-    printf "  %s..." "Reloading systemd daemon"
-    if systemctl --user daemon-reload; then
-        printf " ${FARM_C_OK}ok${FARM_C_RESET}\n"
-    else
-        printf " ${FARM_C_ERR}FAILED${FARM_C_RESET}\n"
+    run_step "Reloading systemd daemon" systemctl --user daemon-reload
+    if [ "$STEP_FAILED" -ne 0 ]; then
+        farm_print_error "Install finished with problems."
+        exit 1
     fi
     farm_print_ok "Installed unit files:"
     echo "  - $SERVICE_PATH"
@@ -125,17 +140,12 @@ enable_timer() {
         exit 1
     fi
 
-    printf "  %s..." "Reloading systemd daemon"
-    if systemctl --user daemon-reload; then
-        printf " ${FARM_C_OK}ok${FARM_C_RESET}\n"
-    else
-        printf " ${FARM_C_ERR}FAILED${FARM_C_RESET}\n"
-    fi
-    printf "  %s..." "Enabling and starting $TIMER_NAME"
-    if systemctl --user enable --now "$TIMER_NAME"; then
-        printf " ${FARM_C_OK}ok${FARM_C_RESET}\n"
-    else
-        printf " ${FARM_C_ERR}FAILED${FARM_C_RESET}\n"
+    run_step "Reloading systemd daemon" systemctl --user daemon-reload
+    run_step "Enabling and starting $TIMER_NAME" \
+        systemctl --user enable --now "$TIMER_NAME"
+    if [ "$STEP_FAILED" -ne 0 ]; then
+        farm_print_error "Enable finished with problems."
+        exit 1
     fi
     farm_print_ok "Enabled timer: $TIMER_NAME"
 }
@@ -145,17 +155,12 @@ run_now() {
     if ! ensure_installed; then
         exit 1
     fi
-    printf "  %s..." "Reloading systemd daemon"
-    if systemctl --user daemon-reload; then
-        printf " ${FARM_C_OK}ok${FARM_C_RESET}\n"
-    else
-        printf " ${FARM_C_ERR}FAILED${FARM_C_RESET}\n"
-    fi
-    printf "  %s..." "Starting $SERVICE_NAME"
-    if systemctl --user start --no-block "$SERVICE_NAME"; then
-        printf " ${FARM_C_OK}ok${FARM_C_RESET}\n"
-    else
-        printf " ${FARM_C_ERR}FAILED${FARM_C_RESET}\n"
+    run_step "Reloading systemd daemon" systemctl --user daemon-reload
+    run_step "Starting $SERVICE_NAME" \
+        systemctl --user start --no-block "$SERVICE_NAME"
+    if [ "$STEP_FAILED" -ne 0 ]; then
+        farm_print_error "Trigger finished with problems."
+        exit 1
     fi
     farm_print_ok "Triggered service: $SERVICE_NAME"
 }

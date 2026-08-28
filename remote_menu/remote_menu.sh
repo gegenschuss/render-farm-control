@@ -109,7 +109,8 @@ confirm_danger() {
     printf "  ${RED}╰%s╯${NC}\n\n" "$line"
     read -n 1 -r -p "$(printf "  ${RED}are you sure? [y/N] (q=cancel): ${NC}")" confirm
     printf "\n"
-    tput civis
+    # No civis here: a confirmed child script runs next and would
+    # inherit a hidden cursor; the menu re-hides it on redraw.
     [[ "$confirm" =~ ^[Yy]$ ]]
 }
 

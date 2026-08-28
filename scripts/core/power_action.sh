@@ -344,8 +344,8 @@ run_shutdown() {
     done
 
     disable_autowake_timer() {
-        if [ -x "$SCRIPTS/deadline/autowake.sh" ]; then
-            bash "$SCRIPTS/deadline/autowake.sh" disable >/dev/null 2>&1 || true
+        if [ -x "$FARM_SCRIPTS_DIR/deadline/autowake.sh" ]; then
+            bash "$FARM_SCRIPTS_DIR/deadline/autowake.sh" disable >/dev/null 2>&1 || true
         fi
     }
 
@@ -523,7 +523,7 @@ echo "Killing Houdini render processes (husk/mantra)..."
 pkill -KILL -x husk   2>/dev/null && echo "  husk killed"   || echo "  husk: none"
 pkill -KILL -x mantra 2>/dev/null && echo "  mantra killed" || echo "  mantra: none"
 echo ""
-echo "Gute Nacht. Powering off..."
+echo "Good night. Powering off..."
 sudo poweroff
 EOF
     B64_PAYLOAD=$(echo "$REMOTE_SCRIPT" | base64 -w 0)
@@ -642,7 +642,8 @@ EOF
     done
 
     # ── confirm (inline footer) ───────────────────────────────────────────────
-    local _summary="${_n_will} queued${_n_skip:+, ${_n_skip} skipped}"
+    local _summary="${_n_will} queued"
+    [ "${_n_skip:-0}" -gt 0 ] && _summary+=", ${_n_skip} skipped"
     [ "${#BLOCKED_NODES[@]}" -gt 0 ] && _summary+=" — BLOCKED: ${BLOCKED_NODES[*]}"
 
     if [ "$AUTO_YES" -eq 0 ] && [ "$can_redraw" -eq 1 ]; then
@@ -743,7 +744,7 @@ EOF
         fi
         if local_shutdown_countdown 10; then
             disable_autowake_timer
-            setsid bash -c 'sleep 3 && sudo poweroff' &>/dev/null &
+            setsid bash -c 'sleep 3 && sudo -n poweroff' &>/dev/null &
             echo "  Shutdown command sent. Powering off in ~3 seconds..."
         else
             echo ""
@@ -1011,7 +1012,8 @@ EOF
     done
 
     # ── confirm (inline footer — no extra table) ──────────────────────────────
-    local _summary="${_n_will} queued${_n_skip:+, ${_n_skip} skipped}"
+    local _summary="${_n_will} queued"
+    [ "${_n_skip:-0}" -gt 0 ] && _summary+=", ${_n_skip} skipped"
     [ "${#BLOCKED_NODES[@]}" -gt 0 ] && \
         _summary+=" — BLOCKED: ${BLOCKED_NODES[*]}"
 

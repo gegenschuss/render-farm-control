@@ -39,7 +39,7 @@ for arg in "$@"; do
 done
 
 SRC_DIR="$FARM_BASE_DIR/deadline"
-DST_DIR="$FARM_DEADLINE_REPO_DIR/custom/events/FarmAutoWake"
+DST_DIR="${FARM_DEADLINE_REPO_DIR:?Set FARM_DEADLINE_REPO_DIR in config/secrets.sh}/custom/events/FarmAutoWake"
 
 if [ ! -d "$SRC_DIR" ]; then
     farm_print_error "Source plugin directory not found: $SRC_DIR"

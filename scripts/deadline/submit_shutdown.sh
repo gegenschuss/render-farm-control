@@ -14,7 +14,7 @@ show_help() {
 Usage: ./submit_shutdown.sh [options]
 
 Submit a suspended Deadline Command Script job that runs:
-  ./shutdown.sh --deadline-postjob
+  scripts/core/shutdown.sh --postjob
 
 Options:
   -h, --help      Show this help message

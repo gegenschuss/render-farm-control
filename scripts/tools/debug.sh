@@ -33,14 +33,14 @@ echo ""
 
 UPDATE_ACTIVE=$(ssh -F ~/.ssh/config -o ConnectTimeout=3 -o LogLevel=ERROR \
     $WIN_NODE \
-    'powershell -Command "Get-Process -Name TiWorker,wuauclt,WUDFHost -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name"' \
+    'powershell -Command "Get-Process -Name TiWorker,wuauclt -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name"' \
     2>/dev/null)
 
 echo "  Raw output:"
 echo "$UPDATE_ACTIVE" | sed "s/^/  /"
 echo ""
 
-if echo "$UPDATE_ACTIVE" | grep -qi "TiWorker\|wuauclt\|WUDFHost"; then
+if echo "$UPDATE_ACTIVE" | grep -qi "TiWorker\|wuauclt"; then
     echo "  RESULT: Windows update ACTIVE - would skip!"
 else
     echo "  RESULT: No active updates - safe to reboot"
