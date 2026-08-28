@@ -118,7 +118,7 @@ if [ -n "$REMOTE_VER" ] && [ -n "$DOWNLOAD_ID" ] \
     FETCH="y"
     if [ "$AUTO_YES" -ne 1 ]; then
         farm_prompt_rule
-        read -p "  Download ${REMOTE_VER} now? (y/n, q=cancel): " FETCH
+        read -p "  Download ${REMOTE_VER} now? (y/N, q=cancel): " FETCH
         echo ""
         if [[ "$FETCH" == "q" || "$FETCH" == "Q" ]]; then
             echo "  Aborted."
@@ -194,7 +194,7 @@ if [ -n "$FOUND_ZIP" ] && [ ! -f "$SEARCH_DIR/$(basename "$FOUND_ZIP")" ]; then
     COPY_ARCHIVE="y"
     if [ "$AUTO_YES" -ne 1 ]; then
         farm_prompt_rule
-        read -p "  Copy to install share? (y/n, q=cancel): " COPY_ARCHIVE
+        read -p "  Copy to install share? (y/N, q=cancel): " COPY_ARCHIVE
         echo ""
         if [[ "$COPY_ARCHIVE" == "q" || "$COPY_ARCHIVE" == "Q" ]]; then
             echo "  Aborted."
@@ -256,7 +256,7 @@ fi
 
 if [ "$AUTO_YES" -ne 1 ]; then
     farm_prompt_rule
-    read -p "  Install this version? (y/n): " PROCEED
+    read -p "  Install this version? (y/N): " PROCEED
     echo ""
     if [[ ! "$PROCEED" =~ ^[Yy]$ ]]; then
         echo "  Aborted."
@@ -355,6 +355,9 @@ fi
 
 echo "  built: $(basename "$DEB_FILE")"
 echo ""
+# The build can outlive sudo's credential cache; re-auth (instant when
+# still cached) so dpkg never prompts unstyled mid-stream.
+farm_sudo_auth || { farm_print_error "sudo authentication failed."; exit 1; }
 sudo dpkg -i "$DEB_FILE" 2>&1 | farm_indent
 RC=${PIPESTATUS[0]}
 

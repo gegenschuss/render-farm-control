@@ -80,7 +80,7 @@ if [ -z "$REMOTE_FILE" ]; then
         echo "  Copy a new archive to the install share first?"
         echo "  $SEARCH_DIR"
         farm_prompt_rule
-        read -p "  (y/n, q=cancel): " COPY_ARCHIVE
+        read -p "  (y/N, q=cancel): " COPY_ARCHIVE
         echo ""
         if [[ "$COPY_ARCHIVE" == "q" || "$COPY_ARCHIVE" == "Q" ]]; then
             echo "  Aborted."
@@ -122,7 +122,7 @@ else
         FETCH="y"
         if [ "$AUTO_YES" -ne 1 ]; then
             farm_prompt_rule
-            read -p "  Download ${REMOTE_VER} now? (y/n, q=cancel): " FETCH
+            read -p "  Download ${REMOTE_VER} now? (y/N, q=cancel): " FETCH
             echo ""
             if [[ "$FETCH" == "q" || "$FETCH" == "Q" ]]; then
                 echo "  Aborted."
@@ -217,7 +217,7 @@ fi
 
 if [ "$AUTO_YES" -ne 1 ]; then
     farm_prompt_rule
-    read -p "  Update /opt/blender? (y/n): " PROCEED
+    read -p "  Update /opt/blender? (y/N): " PROCEED
     echo ""
     if [[ ! "$PROCEED" =~ ^[Yy]$ ]]; then
         echo "  Aborted."

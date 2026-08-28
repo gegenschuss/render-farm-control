@@ -79,7 +79,7 @@ if [ -n "$FORCE_LOCAL" ]; then
     LICENSE_LOCAL="$FORCE_LOCAL"
 else
     farm_prompt_rule
-    read -p "  Also update local machine ($FARM_LOCAL_NAME)? (y/n, q=cancel): " LICENSE_LOCAL
+    read -p "  Also update local machine ($FARM_LOCAL_NAME)? (y/N, q=cancel): " LICENSE_LOCAL
     echo ""
     if [[ "$LICENSE_LOCAL" == "q" || "$LICENSE_LOCAL" == "Q" ]]; then
         echo "  Aborted."

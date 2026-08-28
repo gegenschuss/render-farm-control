@@ -647,17 +647,21 @@ EOF
     [ "${#BLOCKED_NODES[@]}" -gt 0 ] && _summary+=" — BLOCKED: ${BLOCKED_NODES[*]}"
 
     if [ "$AUTO_YES" -eq 0 ] && [ "$can_redraw" -eq 1 ]; then
-        _draw_table "${_summary} — Proceed? [y/N]:"
+        local _footer="${_summary} — Proceed? [y/N]:"
+        _draw_table "$_footer"
+        # Park the cursor right after the prompt, not on the next line.
+        printf "\033[1A\r\033[%dC" $(( ${#_footer} + 3 ))
         local _conf
         IFS= read -r -n 1 -s _conf < /dev/tty
+        printf "\n"
         if [[ "$_conf" =~ ^[Yy]$ ]]; then
             printf "\033[%dA\r" $(( total_nodes * 3 + 1 ))
         else
-            echo ""; echo "Aborted."; exit 0
+            echo "  Aborted."; exit 0
         fi
     else
         _draw_table "$_summary"
-        if ! farm_confirm_yn "Are you sure? (y/n): " "$AUTO_YES" "n"; then
+        if ! farm_confirm_yn "Are you sure? (y/N, q=cancel): " "$AUTO_YES" "n"; then
             echo "  Aborted."; exit 0
         fi
         if [ "$AUTO_YES" -eq 1 ] && [ "$can_redraw" -eq 1 ]; then
@@ -772,14 +776,13 @@ run_reboot() {
     farm_print_title "FARM REBOOT"
 
     if [ "$WITH_LOCAL" -eq 1 ]; then local_choice="y"; else local_choice="n"; fi
-    echo ""
 
     if [ "$WINDOWS_ONLY" -eq 0 ]; then
         if [ "$AUTO_YES" -eq 1 ]; then
             reboot_scope_choice="a"
         else
             prompt_inline_choice_with_cancel \
-                "[a] all nodes   [w] Win → Linux only"
+                "[A] all nodes   [w] Win → Linux only"
             reboot_scope_choice="$FARM_PROMPT_ANSWER"
             farm_prompt_rule
         fi
@@ -1018,18 +1021,22 @@ EOF
         _summary+=" — BLOCKED: ${BLOCKED_NODES[*]}"
 
     if [ "$AUTO_YES" -eq 0 ] && [ "$can_redraw" -eq 1 ]; then
-        _draw_table "${_summary} — Proceed? [y/N]:"
+        local _footer="${_summary} — Proceed? [y/N]:"
+        _draw_table "$_footer"
+        # Park the cursor right after the prompt, not on the next line.
+        printf "\033[1A\r\033[%dC" $(( ${#_footer} + 3 ))
         local _conf
         IFS= read -r -n 1 -s _conf < /dev/tty
+        printf "\n"
         if [[ "$_conf" =~ ^[Yy]$ ]]; then
             # Move cursor back to table top so the exec table overwrites exactly.
             printf "\033[%dA\r" $(( total_nodes * 3 + 1 ))
         else
-            echo ""; echo "Aborted."; exit 0
+            echo "  Aborted."; exit 0
         fi
     else
         _draw_table "$_summary"
-        if ! farm_confirm_yn "Are you sure? (y/n): " "$AUTO_YES" "n"; then
+        if ! farm_confirm_yn "Are you sure? (y/N, q=cancel): " "$AUTO_YES" "n"; then
             echo "  Aborted."; exit 0
         fi
         echo ""

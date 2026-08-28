@@ -10,11 +10,11 @@ SPIN_RESET=$'\033[0m'
 SPIN_DIM=$'\033[2m'
 case "${COLORTERM:-}" in
   truecolor|24bit)
-    SPIN_COLOR=$'\033[38;2;135;215;255m'   # UI accent #87d7ff
+    SPIN_COLOR=$'\033[38;2;41;156;240m'   # UI accent #299CF0
     ;;
   *)
     if [ "$(tput colors 2>/dev/null || echo 8)" -ge 256 ]; then
-      SPIN_COLOR=$'\033[38;5;117m'
+      SPIN_COLOR=$'\033[38;5;39m'
     fi
     ;;
 esac

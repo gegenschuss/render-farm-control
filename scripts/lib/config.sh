@@ -184,24 +184,39 @@ else
     FARM_G_METER_OFF='.'
 fi
 
-# Palette: black & white plus ONE accent (#87d7ff); red/green are
-# reserved for failed/good status, warnings render bold.
+# Palette matched to the SilverBullet theme: blue UI accent (#299CF0)
+# for interactive elements, warm-yellow headers (#FFF954 titles,
+# #E8D42A sections), mint (#7EEAAA) for good status, warm cream
+# (#FFF8C4) bold for warnings, muted gray (#9AA0A6) for dim text;
+# red stays reserved for failures/danger.
 FARM_C_RESET='\033[0m'
 if [ "$FARM_UI_TC" -eq 1 ]; then
-    FARM_C_ACCENT='\033[38;2;135;215;255m'
+    FARM_C_ACCENT='\033[38;2;41;156;240m'
+    FARM_C_H1='\033[38;2;255;249;84m'
+    FARM_C_H2='\033[38;2;232;212;42m'
+    FARM_C_OK='\033[38;2;126;234;170m'
+    FARM_C_WARN='\033[1;38;2;255;248;196m'
+    FARM_C_DIM='\033[38;2;154;160;166m'
 elif [ "$FARM_UI_256" -eq 1 ]; then
-    FARM_C_ACCENT='\033[38;5;117m'
+    FARM_C_ACCENT='\033[38;5;39m'
+    FARM_C_H1='\033[38;5;227m'
+    FARM_C_H2='\033[38;5;184m'
+    FARM_C_OK='\033[38;5;115m'
+    FARM_C_WARN='\033[1;38;5;230m'
+    FARM_C_DIM='\033[38;5;247m'
 else
     FARM_C_ACCENT='\033[94m'
+    FARM_C_H1='\033[1;33m'
+    FARM_C_H2='\033[33m'
+    FARM_C_OK='\033[32m'
+    FARM_C_WARN='\033[1m'
+    FARM_C_DIM='\033[2m'
 fi
-FARM_C_TITLE="\033[1m${FARM_C_ACCENT}"
-FARM_C_SECTION="$FARM_C_ACCENT"
-FARM_C_RULE='\033[2m'
-FARM_C_OK='\033[32m'
-FARM_C_WARN='\033[1m'
+FARM_C_TITLE="\033[1m${FARM_C_H1}"
+FARM_C_SECTION="$FARM_C_H2"
+FARM_C_RULE="$FARM_C_DIM"
 FARM_C_ERR='\033[1;31m'
 FARM_C_NODE="$FARM_C_ACCENT"
-FARM_C_DIM='\033[2m'
 # 56 content cols + 2-space margins each side = the 60-col farm window.
 FARM_UI_WIDTH=56
 FARM_VERSION="${FARM_VERSION:-2.1}"
@@ -209,6 +224,8 @@ FARM_VERSION="${FARM_VERSION:-2.1}"
 farm_disable_colors() {
     FARM_C_RESET=''
     FARM_C_ACCENT=''
+    FARM_C_H1=''
+    FARM_C_H2=''
     FARM_C_TITLE=''
     FARM_C_SECTION=''
     FARM_C_RULE=''
@@ -220,15 +237,15 @@ farm_disable_colors() {
 }
 
 farm_apply_random_header_theme() {
-    # Fixed palette: the single UI accent (#87d7ff) carries the identity
-    # (title bold, section regular). Kept as a function so existing call
-    # sites (menu rebuilds) stay valid. FARM_UI_ACCENT_N is exported for
-    # reuse by the tmux session styling on 256-color terminals.
-    FARM_C_TITLE="\033[1m${FARM_C_ACCENT}"
-    FARM_C_SECTION="$FARM_C_ACCENT"
-    FARM_C_RULE='\033[2m'
+    # Fixed SilverBullet palette: warm-yellow headers, blue UI accent.
+    # Kept as a function so existing call sites (menu rebuilds) stay
+    # valid. FARM_UI_ACCENT_N is exported for reuse by the tmux session
+    # styling on 256-color terminals.
+    FARM_C_TITLE="\033[1m${FARM_C_H1}"
+    FARM_C_SECTION="$FARM_C_H2"
+    FARM_C_RULE="$FARM_C_DIM"
     if [ "$FARM_UI_256" -eq 1 ]; then
-        FARM_UI_ACCENT_N="117"
+        FARM_UI_ACCENT_N="39"
     else
         FARM_UI_ACCENT_N=""
     fi
@@ -357,7 +374,7 @@ farm_spin_start() {
             elapsed=""
             [ "$secs" -ge 1 ] && elapsed=" ${secs}s"
             printf '\r\033[K  %b %s%b%s%b' \
-                "${FARM_C_SECTION}${FARM_SPIN_FRAMES[i % n]}${FARM_C_RESET}" \
+                "${FARM_C_ACCENT}${FARM_SPIN_FRAMES[i % n]}${FARM_C_RESET}" \
                 "$label" "$FARM_C_DIM" "$elapsed" "$FARM_C_RESET"
             i=$(( i + 1 ))
             sleep 0.08
@@ -430,6 +447,8 @@ farm_sudo_auth() {
         sudo -v -p "  [sudo] password for %p: "
         return $?
     fi
+    # Own the conversation so every line keeps the 2-space margin
+    # (sudo's own "Sorry, try again." prints at column 0).
     local pw tries=0
     while [ "$tries" -lt 3 ]; do
         if ! IFS= read -r -s -p "  [sudo] password for $USER: " pw < /dev/tty; then
@@ -516,7 +535,7 @@ farm_prompt_local_choice() {
 prompt_inline_yn_with_cancel() {
     local prompt_text="$1"
     local answer
-    printf "  %s (y/n)? " "$prompt_text"
+    printf "  %s (y/N, q=cancel)? " "$prompt_text"
     read -n 1 -s -r answer
     echo "$answer"
     if [[ "$answer" == "q" || "$answer" == "Q" ]]; then

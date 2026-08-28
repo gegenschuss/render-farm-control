@@ -59,7 +59,7 @@ clean_defined_app() {
         return
     fi
 
-    read -p "  Purge contents of $APP_NAME? (y/n, q=cancel) " -n 1 -r
+    read -p "  Purge contents of $APP_NAME? (y/N, q=cancel) " -n 1 -r
     echo "" 
     if [[ $REPLY =~ ^[Qq]$ ]]; then
         echo "   Aborted."
@@ -107,7 +107,7 @@ clean_dynamic_root() {
 
         echo ""
         echo "   Found Project: $FOLDER_NAME ($SIZE)"
-        read -p "  > DELETE '$FOLDER_NAME'? (y/n, q=cancel) " -n 1 -r
+        read -p "  > DELETE '$FOLDER_NAME'? (y/N, q=cancel) " -n 1 -r
         echo ""
         if [[ $REPLY =~ ^[Qq]$ ]]; then
             echo "      Aborted."

@@ -31,26 +31,39 @@ case "${LC_ALL:-${LC_CTYPE:-${LANG:-}}}" in
 esac
 
 # --- PALETTE ---
-# Accent #87d7ff on truecolor terminals, 256-color 43 (#00d7af) as the
-# nearest fallback, classic cyan last. Everything else is default
-# foreground / bold / dim; red + green only for FAIL / OK status.
+# SilverBullet theme: blue UI accent (#299CF0), warm-yellow headers
+# (#FFF954 / #E8D42A), mint OK (#7EEAAA), warm-cream bold warnings
+# (#FFF8C4), muted gray dim (#9AA0A6); red only for FAIL/danger.
 ui_init_colors() {
-  C_RESET="" C_BOLD="" C_DIM="" C_ACCENT="" C_OK="" C_FAIL="" UI_SEL_ON=""
+  C_RESET="" C_BOLD="" C_DIM="" C_ACCENT="" C_H1="" C_H2="" C_OK="" C_FAIL="" UI_SEL_ON=""
   if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
     C_RESET=$'\033[0m'
     C_BOLD=$'\033[1m'
     C_DIM=$'\033[2m'
     C_OK=$'\033[32m'
     C_FAIL=$'\033[31m'
+    C_H1=$'\033[1;33m'
+    C_H2=$'\033[33m'
+    C_WARN="$C_BOLD"
     case "${COLORTERM:-}" in
       truecolor|24bit)
-        C_ACCENT=$'\033[38;2;135;215;255m'
-        UI_SEL_ON=$'\033[48;2;135;215;255m\033[38;2;20;20;20m\033[1m'
+        C_ACCENT=$'\033[38;2;41;156;240m'
+        C_H1=$'\033[38;2;255;249;84m'
+        C_H2=$'\033[38;2;232;212;42m'
+        C_OK=$'\033[38;2;126;234;170m'
+        C_WARN=$'\033[1;38;2;255;248;196m'
+        C_DIM=$'\033[38;2;154;160;166m'
+        UI_SEL_ON=$'\033[48;2;41;156;240m\033[38;2;20;20;20m\033[1m'
         ;;
       *)
         if [ "$(tput colors 2>/dev/null || echo 8)" -ge 256 ]; then
-          C_ACCENT=$'\033[38;5;117m'
-          UI_SEL_ON=$'\033[48;5;117m\033[38;5;235m\033[1m'
+          C_ACCENT=$'\033[38;5;39m'
+          C_H1=$'\033[38;5;227m'
+          C_H2=$'\033[38;5;184m'
+          C_OK=$'\033[38;5;115m'
+          C_WARN=$'\033[1;38;5;230m'
+          C_DIM=$'\033[38;5;247m'
+          UI_SEL_ON=$'\033[48;5;39m\033[38;5;235m\033[1m'
         else
           C_ACCENT=$'\033[94m'
           UI_SEL_ON=$'\033[7m\033[1m'
@@ -62,9 +75,9 @@ ui_init_colors() {
   fi
   # Semantic names used by the scripts (old names kept as aliases).
   C_INFO="$C_ACCENT"
-  C_HEAD="$C_ACCENT"
+  C_HEAD="$C_H2"
   C_SUB="$C_DIM"
-  C_WARN="$C_BOLD"
+  : "${C_WARN:=$C_BOLD}"
 }
 ui_init_colors
 

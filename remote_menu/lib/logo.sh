@@ -1,13 +1,13 @@
 #!/bin/bash
-# Solid accent-colored logo: light blue #87d7ff on truecolor terminals,
-# 256-color 117, classic bright blue as the last fallback. Bash 3.2
+# Solid warm-yellow logo (#FFF954, the SilverBullet page-title color):
+# 256-color 227, classic bright yellow as the last fallback. Bash 3.2
 # compatible (macOS default); runs on macOS and Linux.
-LOGO_COLOR='\033[94m'
+LOGO_COLOR='\033[1;33m'
 if [ "$(tput colors 2>/dev/null || echo 8)" -ge 256 ]; then
-  LOGO_COLOR='\033[38;5;117m'
+  LOGO_COLOR='\033[38;5;227m'
 fi
 case "${COLORTERM:-}" in
-  truecolor|24bit) LOGO_COLOR='\033[38;2;135;215;255m' ;;
+  truecolor|24bit) LOGO_COLOR='\033[38;2;255;249;84m' ;;
 esac
 BOLD='\033[1m'
 NC='\033[0m'
@@ -18,6 +18,7 @@ LOGO_LINES=(
 '|  |  | -_| . | -_|   |_ -|  _|   | | |_ -|_ -|'
 '|_____|___|_  |___|_|_|___|___|_|_|___|___|___|'
 '          |___|'
+'                               farm-control'
 )
 
 # Center the art in the 60-column UI: shift every line by the same pad
@@ -39,9 +40,12 @@ pick_gradient() {
 
 # print_logo [ignored] — always renders the solid accent logo.
 print_logo() {
-  local i=0 n=${#LOGO_LINES[@]}
+  local i=0 n=${#LOGO_LINES[@]} style
   while [ "$i" -lt "$n" ]; do
-    echo -e "${LOGO_PAD}${LOGO_COLOR}${BOLD}${LOGO_LINES[$i]}${NC}"
+    # Tagline (last line) stays regular weight; the art is bold.
+    style="$BOLD"
+    [ "$i" -eq $((n-1)) ] && style=""
+    echo -e "${LOGO_PAD}${LOGO_COLOR}${style}${LOGO_LINES[$i]}${NC}"
     i=$((i+1))
   done
   echo ""

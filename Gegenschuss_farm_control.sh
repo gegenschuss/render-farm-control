@@ -37,21 +37,24 @@ YELLOW="$FARM_C_WARN"
 DIM="$FARM_C_DIM"
 
 function apply_random_menu_theme() {
-    # Fixed palette: the single UI accent (#87d7ff) drives the shortcut
-    # keys, section headers, selection bar and footer; 256-color and
-    # classic ANSI fallbacks. Kept as a function so menu rebuilds stay
-    # valid call sites.
+    # Fixed SilverBullet palette: blue UI accent (#299CF0) for shortcut
+    # keys, selection bar and footer; warm-yellow section headers
+    # (#E8D42A). 256-color and classic ANSI fallbacks. Kept as a
+    # function so menu rebuilds stay valid call sites.
     if [ "${FARM_UI_TC:-0}" -eq 1 ]; then
-        CYAN='\033[38;2;135;215;255m'
+        CYAN='\033[38;2;41;156;240m'
+        HEAD_C='\033[38;2;232;212;42m'
         KEY_C="\033[1m${CYAN}"
         # Selection bar: accent background, near-black bold text.
-        SEL_ON='\033[48;2;135;215;255m\033[38;2;20;20;20m\033[1m'
+        SEL_ON='\033[48;2;41;156;240m\033[38;2;20;20;20m\033[1m'
     elif [ "${FARM_UI_256:-0}" -eq 1 ]; then
-        CYAN='\033[38;5;117m'
+        CYAN='\033[38;5;39m'
+        HEAD_C='\033[38;5;184m'
         KEY_C="\033[1m${CYAN}"
-        SEL_ON='\033[48;5;117m\033[38;5;235m\033[1m'
+        SEL_ON='\033[48;5;39m\033[38;5;235m\033[1m'
     else
         CYAN='\033[94m'
+        HEAD_C='\033[33m'
         KEY_C="\033[1m${CYAN}"
         SEL_ON='\033[7m\033[1m'
     fi
@@ -100,8 +103,9 @@ function handle_sigusr1() {
     for i in "${!MENU_ENTRIES[@]}"; do
         local type _s _p _c _a pairside
         IFS='|' read -r type _s _p _c _a pairside _ <<< "${MENU_ENTRIES[$i]}"
-        # Skip right-side pair items: the left side redraws the full pair row.
-        if [[ "$type" == "ITEM" && "$pairside" != "R" ]]; then
+        # Skip row-sharing items: the first slot redraws the full row.
+        if [[ "$type" == "ITEM" && "$pairside" != "R" \
+              && "$pairside" != "T1" && "$pairside" != "T2" ]]; then
             local selected=0
             [[ "${SELECTABLE[$SELECTED_IDX]}" == "$i" ]] && selected=1
             render_item "$i" "$selected"
@@ -125,7 +129,7 @@ function render_header() {
         fill=$(( width - ${#label} - 6 ))
         (( fill < 0 )) && fill=0
         printf -v line "%${fill}s" ""
-        printf '%b\n' "  ${DIM}${g}${g}${NC} ${BOLD}${CYAN}${label}${NC} ${DIM}${line// /$g}${NC}"
+        printf '%b\n' "  ${DIM}${g}${g}${NC} ${BOLD}${HEAD_C}${label}${NC} ${DIM}${line// /$g}${NC}"
     else
         printf -v line "%$(( width - 2 ))s" ""
         printf '%b\n' "  ${DIM}${line// /$g}${NC}"
@@ -151,13 +155,10 @@ function print_sel_right() {  # $1=lcolored $2=spaces $3=rplain
 # ---------------------------------------------------------------------------
 # HELPER: build a justified line
 # ---------------------------------------------------------------------------
-# Shortcut key color: accent by default, warn for destructive actions,
-# red for exit.
+# Shortcut key color: the single accent for every key (destructive
+# actions are guarded by their confirm dialogs, not key color).
 function key_color() {
-    case "$1" in
-        r|R|s|S|c|q|1|O) printf '%s' "${BOLD}${RED}" ;;
-        *)           printf '%s' "$KEY_C" ;;
-    esac
+    printf '%s' "$KEY_C"
 }
 
 function make_line() {
@@ -225,6 +226,86 @@ function _render_pair_row() {
     else
         printf '%b' "$full_colored"
     fi
+    tput rc
+}
+
+# ---------------------------------------------------------------------------
+# TRIPLE ITEMS  (three actions sharing one visual row)
+# ---------------------------------------------------------------------------
+TRIPLE_SPLIT2=42   # column where the third slot starts
+declare -A TRI_ROW     # entry_idx -> "i0 i1 i2"
+declare -A TRI_SEG_P   # entry_idx -> plain segment
+declare -A TRI_SEG_C   # entry_idx -> colored segment
+declare -A TRI_PAD     # entry_idx -> spaces AFTER this segment
+
+function add_triple() {
+    local s1="$1" l1="${2,,}" a1="$3" s2="$4" l2="${5,,}" a2="$6"
+    local s3="$7" l3="${8,,}" a3="$9"
+
+    local p0="   ${s1}  ${l1}"
+    local p1="${s2}  ${l2}"
+    local p2="${s3}  ${l3}"
+
+    local pad0 pad1 sp0 sp1
+    pad0=$(( PAIR_SPLIT - ${#p0} )); (( pad0 < 2 )) && pad0=2
+    printf -v sp0 "%${pad0}s" ""
+    pad1=$(( TRIPLE_SPLIT2 - PAIR_SPLIT - ${#p1} )); (( pad1 < 2 )) && pad1=2
+    printf -v sp1 "%${pad1}s" ""
+
+    local full_plain="${p0}${sp0}${p1}${sp1}${p2}"
+    local c0="   $(key_color "$s1")${s1}${NC}  ${l1}"
+    local c1="$(key_color "$s2")${s2}${NC}  ${DIM}${l2}${NC}"
+    local c2="$(key_color "$s3")${s3}${NC}  ${DIM}${l3}${NC}"
+    local full_colored="${c0}${sp0}${c1}${sp1}${c2}"
+
+    local i0=${#MENU_ENTRIES[@]}
+    MENU_ENTRIES+=( "ITEM|${s1}|${full_plain}|${full_colored}|${a1}|T0" )
+    local i1=${#MENU_ENTRIES[@]}
+    MENU_ENTRIES+=( "ITEM|${s2}|${full_plain}|${full_colored}|${a2}|T1" )
+    local i2=${#MENU_ENTRIES[@]}
+    MENU_ENTRIES+=( "ITEM|${s3}|${full_plain}|${full_colored}|${a3}|T2" )
+
+    local members="$i0 $i1 $i2"
+    TRI_ROW[$i0]="$members"; TRI_ROW[$i1]="$members"; TRI_ROW[$i2]="$members"
+    TRI_SEG_P[$i0]="$p0"; TRI_SEG_P[$i1]="$p1"; TRI_SEG_P[$i2]="$p2"
+    TRI_SEG_C[$i0]="$c0"; TRI_SEG_C[$i1]="$c1"; TRI_SEG_C[$i2]="$c2"
+    TRI_PAD[$i0]="$sp0"; TRI_PAD[$i1]="$sp1"; TRI_PAD[$i2]=""
+}
+
+# Print a triple row; sel = selected member entry idx ("" = none).
+function _triple_row_str() {
+    local members="$1" sel="$2" out="" i k=0
+    for i in $members; do
+        if [[ "$i" == "$sel" ]]; then
+            if [[ $k -eq 0 ]]; then
+                out+="${SEL_ON} ${FARM_G_PTR}${TRI_SEG_P[$i]:2}${NC}"
+            else
+                out+="${SEL_ON}${TRI_SEG_P[$i]}${NC}"
+            fi
+        else
+            out+="${TRI_SEG_C[$i]}"
+        fi
+        out+="${TRI_PAD[$i]}"
+        k=$((k+1))
+    done
+    printf '%b' "$out"
+}
+
+function _render_triple_row() {
+    local any_idx=$1
+    local members="${TRI_ROW[$any_idx]}"
+    local first="${members%% *}"
+    local row="${ENTRY_ROW[$first]}"
+    local cur="${SELECTABLE[$SELECTED_IDX]}"
+    local sel="" i
+    for i in $members; do [[ "$cur" == "$i" ]] && sel="$i"; done
+    local _t _s full_plain _rest
+    IFS='|' read -r _t _s full_plain _rest <<< "${MENU_ENTRIES[$first]}"
+    tput sc
+    tput cup "$row" 0
+    printf "%-${#full_plain}s" " "
+    tput cup "$row" 0
+    _triple_row_str "$members" "$sel"
     tput rc
 }
 
@@ -515,7 +596,7 @@ function build_menu() {
     MENU_ENTRIES+=( "HEADER|autowake" )
     MENU_ENTRIES+=( "ITEM|9|${PLAIN_OUT}|${COLOR_OUT}|autowake_toggle" )
 
-    MENU_ENTRIES+=( "HEADER|farm scripts" )
+    MENU_ENTRIES+=( "HEADER|farm" )
     make_line "x" "Status"        ; MENU_ENTRIES+=( "ITEM|x|${PLAIN_OUT}|${COLOR_OUT}|status" )
     make_line "w" "Wake"          ; MENU_ENTRIES+=( "ITEM|w|${PLAIN_OUT}|${COLOR_OUT}|wake" )
     add_pair "v" "NVTop"     "nvtop"                    "V" "+Workstation" "nvtop_local"
@@ -525,22 +606,18 @@ function build_menu() {
     add_pair "s" "Shutdown"  "shutdown"                 "S" "+Workstation" "shutdown_local"
     add_pair "j" "Submit"    "deadline_shutdown_submit" "J" "+Workstation" "deadline_shutdown_submit_local"
 
-    MENU_ENTRIES+=( "HEADER|farm install" )
-    make_line "1" "Houdini"    ; MENU_ENTRIES+=( "ITEM|1|${PLAIN_OUT}|${COLOR_OUT}|install_houdini" )
-    make_line "2" "Houdini License" ; MENU_ENTRIES+=( "ITEM|2|${PLAIN_OUT}|${COLOR_OUT}|license_houdini" )
-
-    MENU_ENTRIES+=( "HEADER|workstation scripts" )
+    MENU_ENTRIES+=( "HEADER|local" )
     make_line "c" "Cache"                 ; MENU_ENTRIES+=( "ITEM|c|${PLAIN_OUT}|${COLOR_OUT}|cache" )
     make_line "p" "Selftest"                ; MENU_ENTRIES+=( "ITEM|p|${PLAIN_OUT}|${COLOR_OUT}|selftest" )
 
-    MENU_ENTRIES+=( "HEADER|start applications" )
-    make_line "h" "Houdini"                    ; MENU_ENTRIES+=( "ITEM|h|${PLAIN_OUT}|${COLOR_OUT}|houdini" )
+    MENU_ENTRIES+=( "HEADER|app" )
+    add_pair "o" "Deadline"         "deadline_monitor" "O" "+Update"       "install_deadline"
+    add_triple "h" "Houdini" "houdini" "H" "+Update" "install_houdini" "L" "+License" "license_houdini"
     add_pair "n" "Nuke"             "nuke"             "N" "+Update"       "nuke_update"
-    make_line "e" "SynthEyes"                  ; MENU_ENTRIES+=( "ITEM|e|${PLAIN_OUT}|${COLOR_OUT}|syntheyes" )
     add_pair "m" "Mocha"            "mocha"            "M" "+Update"       "mocha_import"
     add_pair "b" "Blender"          "blender"          "B" "+Update"       "blender_update"
     add_pair "d" "Davinci"          "davinci"          "D" "+Update"       "resolve_update"
-    add_pair "o" "Deadline Monitor" "deadline_monitor" "O" "+Farm Install" "install_deadline"
+    make_line "e" "SynthEyes"                  ; MENU_ENTRIES+=( "ITEM|e|${PLAIN_OUT}|${COLOR_OUT}|syntheyes" )
 
     MENU_ENTRIES+=( "HEADER|" )
     make_line "?" "Help" ""
@@ -592,6 +669,11 @@ function render_item() {
     local _t shortcut plain colored _a pairside _lp _lc _sp _rp _rc partner_s
     IFS='|' read -r _t shortcut plain colored _a pairside _lp _lc _sp _rp _rc partner_s \
         <<< "${MENU_ENTRIES[$entry_idx]}"
+
+    if [[ "$pairside" == T* ]]; then
+        _render_triple_row "$entry_idx"
+        return
+    fi
 
     if [[ -n "$pairside" ]]; then
         # Resolve which side of the pair is currently the global selection.
@@ -659,9 +741,15 @@ function render_menu() {
                 printf "\n"
                 (( current_row++ ))
             fi
-        elif [[ "$pairside" == "R" ]]; then
-            # Right-side pair item shares its row with the left item (already printed).
+        elif [[ "$pairside" == "R" || "$pairside" == "T1" || "$pairside" == "T2" ]]; then
+            # Shares its row with the first item (already printed).
             ENTRY_ROW[$i]=$(( current_row - 1 ))
+        elif [[ "$pairside" == "T0" ]]; then
+            local cur="${SELECTABLE[$SELECTED_IDX]}"
+            local sel="" m
+            for m in ${TRI_ROW[$i]}; do [[ "$cur" == "$m" ]] && sel="$m"; done
+            _triple_row_str "${TRI_ROW[$i]}" "$sel"; printf '\n'
+            (( current_row++ ))
         else
             # Normal item or left-side of a pair.
             local cur="${SELECTABLE[$SELECTED_IDX]}"
@@ -1036,13 +1124,15 @@ while true; do
                 if (( SELECTED_IDX > 0 )); then
                     old="${SELECTABLE[$SELECTED_IDX]}"
                     (( SELECTED_IDX-- ))
-                    # Skip right-side pair items — reachable only via ←
-                    _ps6=""
-                    IFS='|' read -r _ _ _ _ _ _ps6 _ \
-                        <<< "${MENU_ENTRIES[${SELECTABLE[$SELECTED_IDX]}]}"
-                    if [[ "$_ps6" == "R" ]] && (( SELECTED_IDX > 0 )); then
+                    # Skip row-sharing items (pair right, triple slots 2+3)
+                    # — reachable only via ←→
+                    while (( SELECTED_IDX > 0 )); do
+                        _ps6=""
+                        IFS='|' read -r _ _ _ _ _ _ps6 _ \
+                            <<< "${MENU_ENTRIES[${SELECTABLE[$SELECTED_IDX]}]}"
+                        [[ "$_ps6" == "R" || "$_ps6" == "T1" || "$_ps6" == "T2" ]] || break
                         (( SELECTED_IDX-- ))
-                    fi
+                    done
                     new="${SELECTABLE[$SELECTED_IDX]}"
                     render_item "$old" 0
                     render_item "$new" 1
@@ -1051,25 +1141,47 @@ while true; do
                 if (( SELECTED_IDX < ${#SELECTABLE[@]} - 1 )); then
                     old="${SELECTABLE[$SELECTED_IDX]}"
                     (( SELECTED_IDX++ ))
-                    # Skip right-side pair items — reachable only via ←
-                    _ps6=""
-                    IFS='|' read -r _ _ _ _ _ _ps6 _ \
-                        <<< "${MENU_ENTRIES[${SELECTABLE[$SELECTED_IDX]}]}"
-                    if [[ "$_ps6" == "R" ]] && \
-                       (( SELECTED_IDX < ${#SELECTABLE[@]} - 1 )); then
+                    # Skip row-sharing items (pair right, triple slots 2+3)
+                    # — reachable only via ←→
+                    while (( SELECTED_IDX < ${#SELECTABLE[@]} - 1 )); do
+                        _ps6=""
+                        IFS='|' read -r _ _ _ _ _ _ps6 _ \
+                            <<< "${MENU_ENTRIES[${SELECTABLE[$SELECTED_IDX]}]}"
+                        [[ "$_ps6" == "R" || "$_ps6" == "T1" || "$_ps6" == "T2" ]] || break
                         (( SELECTED_IDX++ ))
-                    fi
+                    done
                     new="${SELECTABLE[$SELECTED_IDX]}"
                     render_item "$old" 0
                     render_item "$new" 1
                 fi ;;
             '[C'|'[D')
-                # ←→ : toggle to the partner of the current pair item
+                # ←→ : cycle through the current row's slots (pair/triple)
                 _cur_e="${SELECTABLE[$SELECTED_IDX]}"
                 _t="" _s="" _p="" _c="" _a="" _ps="" _lp="" _lc="" _sp="" _rp="" _rc="" _partner_s=""
                 IFS='|' read -r _t _s _p _c _a _ps _lp _lc _sp _rp _rc _partner_s \
                     <<< "${MENU_ENTRIES[$_cur_e]}"
-                if [[ -n "$_ps" && -n "${SHORTCUT_MAP[$_partner_s]+x}" ]]; then
+                if [[ "$_ps" == T* ]]; then
+                    # Triple: step to next/prev member (wrapping).
+                    _members=( ${TRI_ROW[$_cur_e]} )
+                    _pos=0
+                    for _k in "${!_members[@]}"; do
+                        [[ "${_members[$_k]}" == "$_cur_e" ]] && _pos=$_k
+                    done
+                    if [[ "$key2" == '[C' ]]; then
+                        _pos=$(( (_pos + 1) % 3 ))
+                    else
+                        _pos=$(( (_pos + 2) % 3 ))
+                    fi
+                    _target="${_members[$_pos]}"
+                    IFS='|' read -r _ _ts _ <<< "${MENU_ENTRIES[$_target]}"
+                    if [[ -n "${SHORTCUT_MAP[$_ts]+x}" ]]; then
+                        old="${SELECTABLE[$SELECTED_IDX]}"
+                        SELECTED_IDX="${SHORTCUT_MAP[$_ts]}"
+                        new="${SELECTABLE[$SELECTED_IDX]}"
+                        render_item "$old" 0
+                        render_item "$new" 1
+                    fi
+                elif [[ -n "$_ps" && -n "${SHORTCUT_MAP[$_partner_s]+x}" ]]; then
                     old="${SELECTABLE[$SELECTED_IDX]}"
                     SELECTED_IDX="${SHORTCUT_MAP[$_partner_s]}"
                     new="${SELECTABLE[$SELECTED_IDX]}"

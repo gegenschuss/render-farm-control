@@ -127,7 +127,7 @@ render_header() {
     fi
     while [ "$i" -lt "$fill" ]; do line="${line}─"; i=$((i+1)); done
     if [ -n "$label" ]; then
-        printf '%b\n' "  ${DIM}──${NC} ${BOLD}${CYAN}${label}${NC} ${DIM}${line}${NC}"
+        printf '%b\n' "  ${DIM}──${NC} ${BOLD}${C_H2}${label}${NC} ${DIM}${line}${NC}"
     else
         printf '%b\n' "  ${DIM}${line}${NC}"
     fi

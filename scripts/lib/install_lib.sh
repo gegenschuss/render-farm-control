@@ -65,10 +65,10 @@ farm_install_build_deadline_remote_script() {
     local install_dir="$3"
     cat << EOF
 echo ""
-echo -e "${FARM_C_RULE}────────────────────────────────────────────────────────────${FARM_C_RESET}"
+echo -e "  ${FARM_C_RULE}────────────────────────────────────────────────────────────${FARM_C_RESET}"
 echo "  INSTALLING:"
 echo "  $filename"
-echo -e "${FARM_C_RULE}────────────────────────────────────────────────────────────${FARM_C_RESET}"
+echo -e "  ${FARM_C_RULE}────────────────────────────────────────────────────────────${FARM_C_RESET}"
 echo ""
 echo "  Step 1: Preparing directory..."
 rm -rf "$install_dir" && mkdir -p "$install_dir"
@@ -96,14 +96,14 @@ echo ""
 echo "  Step 5: Cleanup..."
 cd ~ && rm -rf "$install_dir"
 echo ""
-echo "▸ verification"
+echo "  ▸ verification"
 [ -d "$FARM_DEADLINE_PREFIX" ] \
-    && echo -e "\e[32m[OK]\e[0m Installed" \
-    || echo -e "\e[31m[FAIL]\e[0m Missing"
+    && echo -e "  \e[32m[OK]\e[0m Installed" \
+    || echo -e "  \e[31m[FAIL]\e[0m Missing"
 echo ""
-echo -e "${FARM_C_RULE}────────────────────────────────────────────────────────────${FARM_C_RESET}"
+echo -e "  ${FARM_C_RULE}────────────────────────────────────────────────────────────${FARM_C_RESET}"
 echo "  DONE! Press [RETURN] to close."
-echo -e "${FARM_C_RULE}────────────────────────────────────────────────────────────${FARM_C_RESET}"
+echo -e "  ${FARM_C_RULE}────────────────────────────────────────────────────────────${FARM_C_RESET}"
 read
 EOF
 }
@@ -115,10 +115,10 @@ farm_install_build_deadline_local_script() {
     local install_dir="$4"
     cat << EOF
 echo ""
-echo -e "${FARM_C_RULE}────────────────────────────────────────────────────────────${FARM_C_RESET}"
+echo -e "  ${FARM_C_RULE}────────────────────────────────────────────────────────────${FARM_C_RESET}"
 echo "  INSTALLING $local_name:"
 echo "  $filename"
-echo -e "${FARM_C_RULE}────────────────────────────────────────────────────────────${FARM_C_RESET}"
+echo -e "  ${FARM_C_RULE}────────────────────────────────────────────────────────────${FARM_C_RESET}"
 echo ""
 echo "  Step 1: Preparing directory..."
 rm -rf "$install_dir" && mkdir -p "$install_dir"
@@ -147,14 +147,14 @@ echo ""
 echo "  Step 5: Cleanup..."
 cd ~ && rm -rf "$install_dir"
 echo ""
-echo "▸ verification"
+echo "  ▸ verification"
 [ -d "$FARM_DEADLINE_PREFIX" ] \
-    && echo -e "\e[32m[OK]\e[0m Installed" \
-    || echo -e "\e[1m[INFO]\e[0m GUI Mode: Launcher disabled."
+    && echo -e "  \e[32m[OK]\e[0m Installed" \
+    || echo -e "  \e[1m[INFO]\e[0m GUI Mode: Launcher disabled."
 echo ""
-echo -e "${FARM_C_RULE}────────────────────────────────────────────────────────────${FARM_C_RESET}"
+echo -e "  ${FARM_C_RULE}────────────────────────────────────────────────────────────${FARM_C_RESET}"
 echo "  DONE! Press [RETURN] to close."
-echo -e "${FARM_C_RULE}────────────────────────────────────────────────────────────${FARM_C_RESET}"
+echo -e "  ${FARM_C_RULE}────────────────────────────────────────────────────────────${FARM_C_RESET}"
 read
 EOF
 }
@@ -165,10 +165,10 @@ farm_install_build_houdini_cmd() {
     local install_dir="$3"
     cat << EOF
 echo '';
-echo -e "${FARM_C_RULE}────────────────────────────────────────────────────────────${FARM_C_RESET}";
+echo -e "  ${FARM_C_RULE}────────────────────────────────────────────────────────────${FARM_C_RESET}";
 echo '  INSTALLING:';
 echo '  $filename';
-echo -e "${FARM_C_RULE}────────────────────────────────────────────────────────────${FARM_C_RESET}";
+echo -e "  ${FARM_C_RULE}────────────────────────────────────────────────────────────${FARM_C_RESET}";
 echo '';
 rm -rf "$install_dir";
 mkdir -p "$install_dir";
@@ -192,9 +192,9 @@ echo '  Step 5: Cleanup...';
 cd ~;
 rm -rf "$install_dir";
 echo '';
-echo -e "${FARM_C_RULE}────────────────────────────────────────────────────────────${FARM_C_RESET}";
+echo -e "  ${FARM_C_RULE}────────────────────────────────────────────────────────────${FARM_C_RESET}";
 echo '  DONE! Press Enter to close.';
-echo -e "${FARM_C_RULE}────────────────────────────────────────────────────────────${FARM_C_RESET}";
+echo -e "  ${FARM_C_RULE}────────────────────────────────────────────────────────────${FARM_C_RESET}";
 read line
 EOF
 }

@@ -68,7 +68,7 @@ farm_print_title "$APP_TITLE"
 echo "  Do you want to copy the archive to:"
 echo "  $SEARCH_DIR?"
 farm_prompt_rule
-read -p "  (y/n, q=cancel): " COPY_ARCHIVE
+read -p "  (y/N, q=cancel): " COPY_ARCHIVE
 echo ""
 if [[ "$COPY_ARCHIVE" == "q" || "$COPY_ARCHIVE" == "Q" ]]; then
     echo "  Aborted."
@@ -308,7 +308,7 @@ for i in "${SELECTED[@]}"; do
     printf "  - %s%s\n" "${CAND_NAME[$i]}" "$lm"
 done
 farm_prompt_rule
-read -p "  Proceed? (y/n): " PROCEED
+read -p "  Proceed? (y/N): " PROCEED
 echo ""
 if [[ ! "$PROCEED" =~ ^[Yy]$ ]]; then
     echo "  Aborted."

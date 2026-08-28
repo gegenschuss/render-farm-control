@@ -114,7 +114,7 @@ if [ -n "$FOUND_RPM" ] && [ ! -f "$SEARCH_DIR/$(basename "$FOUND_RPM")" ]; then
     COPY_ARCHIVE="y"
     if [ "$AUTO_YES" -ne 1 ]; then
         farm_prompt_rule
-        read -p "  Copy to install share? (y/n, q=cancel): " COPY_ARCHIVE
+        read -p "  Copy to install share? (y/N, q=cancel): " COPY_ARCHIVE
         echo ""
         if [[ "$COPY_ARCHIVE" == "q" || "$COPY_ARCHIVE" == "Q" ]]; then
             echo "  Aborted."
@@ -164,7 +164,7 @@ echo ""
 
 if [ "$AUTO_YES" -ne 1 ]; then
     farm_prompt_rule
-    read -p "  Import this rpm? (y/n): " PROCEED
+    read -p "  Import this rpm? (y/N): " PROCEED
     echo ""
     if [[ ! "$PROCEED" =~ ^[Yy]$ ]]; then
         echo "  Aborted."
